@@ -1,2 +1,2 @@
-# Sidreal
-An Engine. Made in C++. That's all I have planned so far...
+# SidrealEngine
+An game engine I'm working on in C++ 
