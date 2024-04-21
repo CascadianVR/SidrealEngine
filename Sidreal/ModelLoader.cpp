@@ -122,8 +122,6 @@ Mesh ProcessMesh(aiMesh* aiMesh, const aiScene* scene)
 		std::vector<Texture::Texture> diffuseMaps = LoadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
 		textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
         std::cout << "AAAA: " << diffuseMaps.size() << std::endl;
-		//std::vector<Texture::Texture> specularMaps = LoadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
-		//textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
     }
 
     Mesh mesh;
@@ -144,7 +142,7 @@ std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureTyp
 		Texture::Texture texture;
         std::string path = "Resources\\CasOC\\";
         path.append(texturePath.C_Str());
-        //texture.id = Texture::CreateTexture(path.c_str());
+        texture.id = Texture::CreateTexture(path.c_str());
 		texture.type = typeName.c_str();
 		texture.path = texturePath.C_Str();
 		textures.push_back(texture);

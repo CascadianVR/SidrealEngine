@@ -26,7 +26,8 @@ typedef struct Mesh
 typedef struct Model
 {
 	std::vector<Mesh> meshes;
-	float* position;
+	glm::vec3 position;
+	glm::vec3 rotation;
 };
 
 Model LoadModel(const char* path);

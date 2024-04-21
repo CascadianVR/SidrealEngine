@@ -22,7 +22,7 @@ void main()
 
     float rimlight = max(dot(-cameraForwardf, normal), 0.0f);
 
-    shading *= rimlight;
+    shading *= clamp(0.0f, 1.0f, rimlight + 0.5f);
 
     vec3 color = tex.xyz * shading;
 

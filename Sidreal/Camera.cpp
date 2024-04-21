@@ -31,11 +31,6 @@ void Camera::Initialize() {
 
 void Camera::UpdateCamera(unsigned int* shaderProgram)
 {
-    // Update camera vectors
-    //cameraForward = -glm::normalize(cameraPosition - cameraTarget);
-    //cameraRight = glm::normalize(glm::cross(worldUp, cameraForward));
-    //cameraUp = glm::cross(cameraForward, cameraRight);
-
     // Model matrix
 
     // View matrix
