@@ -27,12 +27,12 @@ void Engine::Run()
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
+		glfwPollEvents();
 		Input::ProcessInput(window);
 
 		Renderer::Render();
 
 		glfwSwapBuffers(window);
-		glfwPollEvents();
 	}
 
 	// Destrow windows and free resources

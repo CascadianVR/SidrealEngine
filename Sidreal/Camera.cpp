@@ -31,18 +31,14 @@ void Camera::Initialize() {
 
 void Camera::UpdateCamera(unsigned int* shaderProgram)
 {
-    // Model matrix
-
     // View matrix
     view = glm::lookAt(cameraPosition, cameraPosition + cameraForward, cameraUp);
 
     // Perspective projection
     projection = glm::perspective(glm::radians(45.0f), (float)Engine::GetCurentScreenWidth() / (float)Engine::GetCurentScreenHeight(), 0.1f, 100.0f);
 
-    Shader::SetShaderUniformgMatrix4fv(shaderProgram, "model", model);
     Shader::SetShaderUniformgMatrix4fv(shaderProgram, "view", view);
     Shader::SetShaderUniformgMatrix4fv(shaderProgram, "projection", projection);
-
 }
 
 glm::vec3 Camera::GetCameraPosition()

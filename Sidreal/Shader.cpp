@@ -62,6 +62,16 @@ unsigned int Shader::CreateShaderProgram(const char* vertexShaderPath, const cha
     return shaderProgram;
 }
 
+void Shader::HotReloadShaders(unsigned int* shaderProgram, const char* vertexShaderPath, const char* fragmentShaderPath) {
+
+    GLuint reloaded_program = Shader::CreateShaderProgram(vertexShaderPath, fragmentShaderPath);
+
+    if (reloaded_program) {
+        glDeleteProgram(*shaderProgram);
+        *shaderProgram = reloaded_program;
+    }
+}
+
 void Shader::SetShaderUniformVec3(unsigned int* shaderProgram, const char* uniformName, float vec3[3])
 {
     int vertexColorLocation = glGetUniformLocation(*shaderProgram, uniformName);

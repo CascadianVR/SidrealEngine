@@ -8,14 +8,19 @@
 #include "Input.h"
 #include "Camera.h"
 #include "MathUtils.h"
+#include "Shader.h"
+#include "Renderer.h"
+#include <iostream>
 
 void UpdateCameraPosition(GLFWwindow* window);
 void UpdateCameraRotation();
-void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void MouseCallback(GLFWwindow* window, double xpos, double ypos);
+void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 const float cameraMoveSpeed = 0.03f;
 glm::vec3 cameraForwardTarget;
 
+bool mouseLocked = false;
 const float cameraLookSensitivity = 0.1f;
 bool firstMouse = true;
 float yaw = -90.0f;
@@ -27,21 +32,69 @@ glm::vec3 cameraPosTarget;
 
 void Input::Initialize(GLFWwindow* window)
 {
-    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetCursorPosCallback(window, MouseCallback);
+    glfwSetKeyCallback(window, KeyCallback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    mouseLocked = true;
     cameraForwardTarget = Camera::GetCameraForward();
     cameraPosTarget = Camera::GetCameraPosition();
 }
 
 void Input::ProcessInput(GLFWwindow* window)
 {
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-    {
-        glfwSetWindowShouldClose(window, true);
-    }
-
     UpdateCameraPosition(window);
     UpdateCameraRotation();
+}
+
+void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    static bool isEscapeKeyPressed = false;
+    static bool isRKeyPressed = false;
+    static bool isLeftAltKeyPressed = false;
+
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS && !isEscapeKeyPressed)
+    {
+        isEscapeKeyPressed = true;
+        glfwSetWindowShouldClose(window, true);
+    }
+    else if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE)
+    {
+        isEscapeKeyPressed = false;
+    }
+
+    if (key == GLFW_KEY_R && action == GLFW_PRESS && !isRKeyPressed)
+    {
+        isRKeyPressed = true;
+        Shader::HotReloadShaders(Renderer::GetShaderProgram(), "lighting.vert", "lighting.frag");
+    }
+    else if (key == GLFW_KEY_R && action == GLFW_RELEASE)
+    {
+        isRKeyPressed = false;
+    }
+
+    if (key == GLFW_KEY_LEFT_ALT && action == GLFW_PRESS && !isLeftAltKeyPressed)
+    {
+        isLeftAltKeyPressed = true;
+        int mode = glfwGetInputMode(window, GLFW_CURSOR);
+        if (mode == GLFW_CURSOR_DISABLED)
+        {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            int width, height;
+            glfwGetWindowSize(window, &width, &height);
+            glfwSetCursorPos(window, width / 2, height / 2);
+            mouseLocked = false;
+        }
+        else
+        {
+
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            mouseLocked = true;
+        }
+    }
+    else if (key == GLFW_KEY_LEFT_ALT && action == GLFW_RELEASE)
+    {
+        isLeftAltKeyPressed = false;
+    }
 }
 
 void UpdateCameraPosition(GLFWwindow* window)
@@ -81,12 +134,27 @@ void UpdateCameraPosition(GLFWwindow* window)
 
 void UpdateCameraRotation()
 {
+    if (!mouseLocked)
+    {
+        cameraForwardTarget = Camera::GetCameraForward();
+        Camera::SetCameraForward(cameraForwardTarget);
+		return;
+	}
     glm::vec3 newCamForward = MathUtils::LerpVec3(Camera::GetCameraForward(), cameraForwardTarget, Engine::GetDeltaTime() * 20.0f);
     Camera::SetCameraForward(glm::normalize(newCamForward));
 }
 
-void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
+void MouseCallback(GLFWwindow* window, double xposIn, double yposIn)
 {
+    if (!mouseLocked)
+    {
+        int width, height;
+        glfwGetWindowSize(window, &width, &height);
+        lastX = static_cast<float>(width) / 2.0f;
+        lastY = static_cast<float>(height) / 2.0f;
+		return;
+	}
+
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
 

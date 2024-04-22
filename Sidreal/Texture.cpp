@@ -6,8 +6,10 @@
 #include "Texture.h"
 #include "Shader.h"
 
-unsigned int Texture::CreateTexture(const char* path)
+unsigned int Texture::CreateTexture(const char* path, unsigned int textureIndex)
 {
+    glActiveTexture(GL_TEXTURE0 + textureIndex);
+
     // Load texture
     unsigned int texture;
     glGenTextures(1, &texture);
@@ -79,7 +81,7 @@ unsigned int Texture::CreateBindlessTexture(const char* path)
     return texture;
 }
 
-void Texture::SetActiveTexture(unsigned int* shaderProgram, unsigned int* texture)
+void Texture::SetActiveTexture(unsigned int* shaderProgram, unsigned int* texture, unsigned int index)
 {
     glUseProgram(*shaderProgram);
     glActiveTexture(GL_TEXTURE0);

@@ -13,10 +13,16 @@ void ProcessNode(aiNode* node, const aiScene* scene, std::vector<Mesh>* meshes);
 Mesh ProcessMesh(aiMesh* mesh, const aiScene* scene);
 std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::string typeName);
 
+unsigned int textureIndex = 0;
+std::vector<Texture::Texture> loadedTextures;
+
 Model LoadModel(const char* path)
 {
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+
+    unsigned int importOptions = aiProcess_Triangulate;
+
+	const aiScene* scene = importer.ReadFile(path, importOptions);
 	
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
@@ -121,8 +127,14 @@ Mesh ProcessMesh(aiMesh* aiMesh, const aiScene* scene)
         aiMaterial* material = scene->mMaterials[aiMesh->mMaterialIndex];
 		std::vector<Texture::Texture> diffuseMaps = LoadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
 		textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-        std::cout << "AAAA: " << diffuseMaps.size() << std::endl;
     }
+
+    if (aiMesh->mMaterialIndex <= 0)
+    {
+        aiMaterial* material = new aiMaterial();
+        std::vector<Texture::Texture> diffuseMaps = LoadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
+        textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+	}
 
     Mesh mesh;
     mesh.vertices = vertices;
@@ -135,18 +147,79 @@ Mesh ProcessMesh(aiMesh* aiMesh, const aiScene* scene)
 std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::string typeName)
 {
 	std::vector<Texture::Texture> textures;
+
+    // Load all textures of a given type
     for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
     {
 		aiString texturePath;
 		mat->GetTexture(type, i, &texturePath);
-		Texture::Texture texture;
-        std::string path = "Resources\\CasOC\\";
-        path.append(texturePath.C_Str());
-        texture.id = Texture::CreateTexture(path.c_str());
-		texture.type = typeName.c_str();
-		texture.path = texturePath.C_Str();
-		textures.push_back(texture);
 
+        // Check if texture was already loaded
+        bool textureLoaded = false;
+        for (int j = 0; j < loadedTextures.size(); j++)
+        {
+            if (loadedTextures[j].path == texturePath.C_Str())
+            {
+                textureLoaded = true;
+                textures.push_back(loadedTextures[j]);
+                textureIndex++;
+
+                break;
+            }
+        }
+
+        // Load texture if not already loaded
+        if (!textureLoaded)
+        {
+            Texture::Texture texture;
+        
+            std::string path = "Resources\\CasOC\\";
+            path.append(texturePath.C_Str());
+        
+            texture.id = Texture::CreateTexture(path.c_str(), textureIndex);
+            texture.index = textureIndex;
+            texture.type = typeName;
+            texture.path = texturePath.C_Str();
+            textures.push_back(texture);
+
+            loadedTextures.push_back(texture);
+
+            textureIndex++;
+        }
 	}
+
+    // Load default texture if no texture was loaded
+    if (mat->GetTextureCount(type) <= 0) 
+    {    
+        // Check if texture was already loaded
+        bool textureLoaded = false;
+        for (int j = 0; j < loadedTextures.size(); j++)
+        {
+            if (loadedTextures[j].path == "Resources\\default.png")
+            {
+                textureLoaded = true;
+                textures.push_back(loadedTextures[j]);
+                textureIndex++;
+                break;
+            }
+        }
+    
+        // Load texture if not already loaded
+        if (!textureLoaded)
+        {
+            Texture::Texture texture;
+
+            texture.id = Texture::CreateTexture("Resources\\default.png", textureIndex);
+            texture.index = textureIndex;
+            texture.type = typeName;
+            texture.path = "Resources\\default.png";
+            textures.push_back(texture);
+
+            loadedTextures.push_back(texture);
+
+            textureIndex++;
+        }
+    }
+
 	return textures;
 }

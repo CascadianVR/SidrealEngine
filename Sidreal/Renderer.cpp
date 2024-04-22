@@ -24,8 +24,7 @@ unsigned int currentTexture;
 
 unsigned int VAO;
 
-
-Model* models;
+std::vector<Model> models;
 
 void Renderer::Initialize()
 {
@@ -33,19 +32,22 @@ void Renderer::Initialize()
 
     shaderProgram = Shader::CreateShaderProgram("lighting.vert", "lighting.frag");
 
-    models = new Model[4];
 
-    models[0] = MeshPrimative::CreateCube();
-    models[0].position = glm::vec3(4.0f, 0.0f, 0.0f);
+    models.push_back(MeshPrimative::CreateCube());
+    models.push_back(LoadModel("Resources\\CasOC\\CASCAS.obj"));
+    models.push_back(LoadModel("Resources\\CUBE.obj"));
+    models.push_back(LoadModel("Resources\\Office.obj"));
+    models.push_back(LoadModel("Resources\\sphere.obj"));
 
-    models[1] = LoadModel("Resources\\CasOC\\CasOC.fbx");
-    models[1].position = glm::vec3(-3.0f, 0.0f, 0.0f);
-
-    models[2] = LoadModel("Resources\\CUBE.obj");
-    models[2].position = glm::vec3(0.0f, 0.0f, 0.0f);
-    
-    models[3] = LoadModel("Resources\\Office.obj");
-    models[3].position = glm::vec3(-6.0f, 0.0f, 0.0f);
+    models[0].position = glm::vec3(0.0f, 0.0f, 0.0f);
+    models[0].rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+    models[1].position = glm::vec3(2.0f, 0.0f, 0.0f);
+    models[1].rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+    models[2].position = glm::vec3(4.0f, 0.0f, 0.0f);
+    models[2].rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+    models[3].position = glm::vec3(-8.0f, 0.0f, 0.0f);
+    models[3].rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+    models[4].position = glm::vec3(-2.5f, 0.0f, 0.0f);
 
     // Load texture
     //textures = new unsigned int[5];
@@ -73,36 +75,48 @@ void Renderer::Render()
     lastTime = currentTime;
     counter += delta;
 
-    glClearColor(0.0f, 1.0f, 1.0f, 1.0f);
+    glClearColor(0.0f, 1.0f, 0.5f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    //// Cycle through each texture every second
-    //if (counter > 1) {
-    //    currentTexture = (currentTexture + 1) % 5;
-    //    counter = 0;
-    //}
-    //Texture::SetActiveTexture(&shaderProgram, &textures[0]);
     Camera::UpdateCamera(&shaderProgram);
 
-    for (int i = 0; i < 4; i++)
-    {
-        for (int j = 0; j < models[i].meshes.size(); j++)
-        {
-            glBindVertexArray(models[i].meshes[j].VAO);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, models[i].meshes[j].EBO);
+    // Set directional light position
+    glm::vec3 lightPosz = glm::vec3(glm::cos(glfwGetTime()) * 5, 1.0f, glm::sin(glfwGetTime())*5);
+    Shader::SetShaderUniformVec3(&shaderProgram, "lightPos", MathUtils::Vec3toFloat3(lightPosz));
 
-            Shader::SetShaderUniformVec3(&shaderProgram, "position", MathUtils::Vec3toFloat3(models[i].position));
-            Shader::SetShaderUniformVec3(&shaderProgram, "rotation", MathUtils::Vec3toFloat3(models[i].position));
+    // Loop through models and draw them
+    for (int i = 0; i < models.size(); i++)
+    {
+        Model model = models[i];
+        for (int j = 0; j < model.meshes.size(); j++)
+        {
+            Mesh mesh = models[i].meshes[j];
+
+            glBindVertexArray(mesh.VAO);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
+
+            glm::mat4 modelMatrix = glm::mat4(1.0f);
+            modelMatrix = glm::translate(modelMatrix, model.position);
+            modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.x), glm::vec3(1, 0, 0));
+            modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.y), glm::vec3(0, 1, 0));
+            modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.z), glm::vec3(0, 0, 1));
+
+            Shader::SetShaderUniformgMatrix4fv(&shaderProgram, "model", modelMatrix);
 
             float* forward = MathUtils::Vec3toFloat3(Camera::GetCameraForward());
             Shader::SetShaderUniformVec3(&shaderProgram, "cameraForward", forward);
 
-            if (models[i].meshes[j].textures.size() > 0)
+            if (mesh.textures.size() > 0)
             {
-                Texture::SetActiveTexture(&shaderProgram, &models[i].meshes[j].textures[0].id);
+              Texture::SetActiveTexture(&shaderProgram, &mesh.textures[0].id, mesh.textures[0].index);
             }
 
-		    glDrawElements(GL_TRIANGLES, models[i].meshes[j].indices.size(), GL_UNSIGNED_INT, 0);
+		    glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
 		}
 	}
+}
+
+unsigned int* Renderer::GetShaderProgram()
+{
+	return &shaderProgram;
 }
