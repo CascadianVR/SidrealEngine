@@ -1,16 +1,14 @@
 #include <GLFW/glfw3.h>
+#include <Windows.h>
 #include <glm/ext/vector_float3.hpp>
-#include <glm/fwd.hpp>
 #include <glm/trigonometric.hpp>
-#include <glm/geometric.hpp>
-
+#include <iostream>
+#include "Camera.h"
 #include "Engine.h"
 #include "Input.h"
-#include "Camera.h"
 #include "MathUtils.h"
-#include "Shader.h"
 #include "Renderer.h"
-#include <iostream>
+#include "Shader.h"
 
 void UpdateCameraPosition(GLFWwindow* window);
 void UpdateCameraRotation();
@@ -30,6 +28,8 @@ float lastY = 0.0f;
 
 glm::vec3 cameraPosTarget;
 
+HANDLE fragShaderChanged;
+
 void Input::Initialize(GLFWwindow* window)
 {
     glfwSetCursorPosCallback(window, MouseCallback);
@@ -44,6 +44,12 @@ void Input::ProcessInput(GLFWwindow* window)
 {
     UpdateCameraPosition(window);
     UpdateCameraRotation();
+
+    if (FindNextChangeNotification(fragShaderChanged))
+    {
+        std::cout << "Shader changed" << std::endl;
+        Shader::HotReloadShaders(Renderer::GetShaderProgram(), "lighting.vert", "lighting.frag");
+    }
 }
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)

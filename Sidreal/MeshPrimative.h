@@ -3,7 +3,7 @@
 
 namespace MeshPrimative
 {
-	Model CreateCube();
-	Model CreateQuad();
+	ModelLoader::Model CreateCube();
+	ModelLoader::Model CreateQuad();
 	unsigned int CreateSphere();
 }

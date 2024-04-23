@@ -1,13 +1,15 @@
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
-
-#include "ModelLoader.h"
-#include <glm/ext/vector_float3.hpp>
-#include <glm/ext/vector_float2.hpp>
 #include <glad/glad.h>
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+#include <glm/ext/vector_float2.hpp>
+#include <glm/ext/vector_float3.hpp>
+#include <iostream>
+#include "ModelLoader.h"
 #include "Texture.h"
+
+using namespace ModelLoader;
 
 void ProcessNode(aiNode* node, const aiScene* scene, std::vector<Mesh>* meshes);
 Mesh ProcessMesh(aiMesh* mesh, const aiScene* scene);
@@ -16,7 +18,7 @@ std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureTyp
 unsigned int textureIndex = 0;
 std::vector<Texture::Texture> loadedTextures;
 
-Model LoadModel(const char* path)
+Model ModelLoader::LoadModel(const char* path)
 {
 	Assimp::Importer importer;
 

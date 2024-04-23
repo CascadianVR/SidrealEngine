@@ -1,42 +1,90 @@
 #version 460 core
-uniform sampler2D tex;
-uniform vec3 lightPos;
 
 out vec4 FragColor;
 
-in mat4 viewMatrix;
-in vec4 worldPosition;
-in vec3 normal;
-in vec2 texCoord;
-in vec3 cameraForwardf;
+in VS_OUT {
+    mat4 viewMatrix;
+    vec4 worldPosition;
+    vec3 normal;
+    vec2 texCoord;
+    vec3 cameraForwardf;
+    vec4 fragPosLightSpace;
+} fs_in;
 
-vec3 ambientLight = vec3(0.05f, 0.05f, 0.05f);
+uniform sampler2D colorTexture;
+uniform sampler2D shadowMap;
+uniform vec3 lightPos;
+
+vec3 ambientLight = vec3(0.6f);
+
+float ShadowCalculation(vec4 fPosLightSpace)
+{
+    // Perform perspective divide
+    vec3 projCoords = fPosLightSpace.xyz / fPosLightSpace.w;
+    // Transform to [0,1] range
+    projCoords = projCoords * 0.5 + 0.5;
+    // Get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
+    float closestDepth = texture(shadowMap, projCoords.xy).r; 
+    // Get depth of current fragment from light's perspective
+    float currentDepth = projCoords.z;
+    // Calculate bias (based on depth map resolution and slope)
+    vec3 normal = normalize(fs_in.normal);
+    vec3 lightDir = normalize(lightPos - fs_in.worldPosition.xyz);
+    float bias = 0.003f;
+    // Check whether current frag pos is in shadow
+    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+    
+    // PCF (Percentage Closer Filtering)
+    float shadowValue = 0.0;
+    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+    for(int x = -1; x <= 1; ++x)
+    {
+        for(int y = -1; y <= 1; ++y)
+        {
+            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
+            shadowValue += currentDepth - bias > pcfDepth ? 1.0 : 0.0;        
+        }    
+    }
+    shadowValue /= 9.0;
+    
+    // Keep the shadow at 0.0 when outside the far_plane region of the light's frustum.
+    if(projCoords.z > 1.0)
+        shadowValue = 0.0;
+        
+    return shadowValue;
+}
 
 void main()
 {
+    vec3 test = normalize(lightPos - fs_in.worldPosition.xyz);
 
-    vec4 viewPosition = normalize(mat4(viewMatrix) * worldPosition);
-    vec3 viewNormal = normalize(mat3(viewMatrix) * normal);
-
-    vec4 textureColor = texture(tex, texCoord);
+    vec4 viewPosition = normalize(mat4(fs_in.viewMatrix) * fs_in.worldPosition);
+    vec3 viewNormal = normalize(mat3(fs_in.viewMatrix) * fs_in.normal);
+    
+    vec4 textureColor = texture(colorTexture, fs_in.texCoord);
 
     // Basic soft shading
-    float shading = dot(normal, normalize(lightPos));
-    shading  = 0.3f * shading + 0.3f;
+    //float shading = dot(fs_in.normal, normalize(lightPos));
+    //shading  = shading / 0.1f + 0.5f; // Sharpen shadow
     //shading = clamp(shading, ambientLight.x, 1.0f);
 
     // Rim lighting
-    float rimlight = max(dot(-cameraForwardf, normal), 0.0f);
-    shading = clamp (shading * rimlight + 0.5f, 0.0f, 1.0f);
+    float rimlight = max(dot(-fs_in.cameraForwardf, fs_in.normal), 0.0f) * 1 + 0.5f;
+    rimlight = clamp(rimlight, 0.8f, 1.0f);
+    //shading *= rimlight;
 
     // Specular
     vec3 viewDir = normalize(-viewPosition.xyz);
     vec3 lightDir = normalize(lightPos - viewPosition.xyz);
     vec3 halfwayDir = normalize(lightDir + viewDir);
     float spec = pow(max(dot(viewNormal, halfwayDir), 0.0f), 15.0f);
-    vec3 specular = vec3(0.1f) * spec;
 
-    vec3 color = shading.xxx * textureColor.xyz + specular;
+    //vec3 color = shading.xxx * textureColor.xyz + (spec*0.05f);
+    vec3 color = textureColor.xyz;
+
+    float castShadows = ShadowCalculation(fs_in.fragPosLightSpace);                      
+
+    color = color * (max(1.0f - castShadows.xxx, ambientLight));
 
     FragColor = vec4(color, 1.0f);
 } 

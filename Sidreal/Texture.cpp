@@ -8,8 +8,6 @@
 
 unsigned int Texture::CreateTexture(const char* path, unsigned int textureIndex)
 {
-    glActiveTexture(GL_TEXTURE0 + textureIndex);
-
     // Load texture
     unsigned int texture;
     glGenTextures(1, &texture);
@@ -27,8 +25,8 @@ unsigned int Texture::CreateTexture(const char* path, unsigned int textureIndex)
 
     glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
     
     if (nrChannels == 3)
     {
@@ -84,7 +82,7 @@ unsigned int Texture::CreateBindlessTexture(const char* path)
 void Texture::SetActiveTexture(unsigned int* shaderProgram, unsigned int* texture, unsigned int index)
 {
     glUseProgram(*shaderProgram);
-    glActiveTexture(GL_TEXTURE0);
+    glActiveTexture(GL_TEXTURE0 + index);
     glBindTexture(GL_TEXTURE_2D, *texture);
     Shader::SetShaderUniformInt1i(shaderProgram, "tex", 0);
 }

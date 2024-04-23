@@ -46,6 +46,8 @@
   <ItemGroup>
     <None Include="lighting.frag" />
     <None Include="lighting.vert" />
+    <None Include="shadow.frag" />
+    <None Include="shadow.vert" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resource\image.png" />

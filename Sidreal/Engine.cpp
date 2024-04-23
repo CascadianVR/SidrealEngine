@@ -1,7 +1,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
-
 #include "Engine.h"
 #include "Input.h"
 #include "Renderer.h"
@@ -71,7 +70,9 @@ void InitializeEngine()
 	glViewport(0, 0, Engine::WINDOW_WIDTH, Engine::WINDOW_HEIGHT);
 	glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
 
+	// Initialize renderer
 	Renderer::Initialize();
+
 	// Initialize input
 	Input::Initialize(window);
 }

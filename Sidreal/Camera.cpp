@@ -1,12 +1,8 @@
-#include <GLFW/glfw3.h>
-#include <glm/trigonometric.hpp>
+#include "Camera.h"
+#include "Engine.h"
+#include "Shader.h"
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
-
-#include "Camera.h"
-#include "Shader.h"
-#include "Engine.h"
-#include <iostream>
 
 glm::vec3 cameraPosition;
 glm::vec3 cameraTarget;

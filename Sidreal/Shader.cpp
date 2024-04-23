@@ -86,6 +86,13 @@ void Shader::SetShaderUniformInt1i(unsigned int* shaderProgram, const char* unif
     glUniform1i(vertexColorLocation, value);
 }
 
+void Shader::SetShaderUniformInt1f(unsigned int* shaderProgram, const char* uniformName, float value)
+{
+    int vertexColorLocation = glGetUniformLocation(*shaderProgram, uniformName);
+    glUseProgram(*shaderProgram);
+    glUniform1f(vertexColorLocation, value);
+}
+
 void Shader::SetShaderUniformgMatrix4fv(unsigned int* shaderProgram, const char* uniformName, glm::mat4 value)
 {
     int vertexColorLocation = glGetUniformLocation(*shaderProgram, uniformName);

@@ -93,6 +93,12 @@
     <None Include="lighting.frag">
       <Filter>Resource\Shaders</Filter>
     </None>
+    <None Include="shadow.vert">
+      <Filter>Resource\Shaders</Filter>
+    </None>
+    <None Include="shadow.frag">
+      <Filter>Resource\Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resource\image.png">
