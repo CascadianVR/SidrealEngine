@@ -81,10 +81,8 @@ unsigned int Texture::CreateBindlessTexture(const char* path)
 
 void Texture::SetActiveTexture(unsigned int* shaderProgram, unsigned int* texture, unsigned int index)
 {
-    glUseProgram(*shaderProgram);
     glActiveTexture(GL_TEXTURE0 + index);
     glBindTexture(GL_TEXTURE_2D, *texture);
-    Shader::SetShaderUniformInt1i(shaderProgram, "tex", 0);
 }
 
 void Texture::SetActiveBindlessTexture(unsigned int* shaderProgram, unsigned int* texture)

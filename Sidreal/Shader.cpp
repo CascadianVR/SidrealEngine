@@ -75,28 +75,24 @@ void Shader::HotReloadShaders(unsigned int* shaderProgram, const char* vertexSha
 void Shader::SetShaderUniformVec3(unsigned int* shaderProgram, const char* uniformName, float vec3[3])
 {
     int vertexColorLocation = glGetUniformLocation(*shaderProgram, uniformName);
-    glUseProgram(*shaderProgram);
     glUniform3f(vertexColorLocation, vec3[0], vec3[1], vec3[2]);
 }
 
 void Shader::SetShaderUniformInt1i(unsigned int* shaderProgram, const char* uniformName, int value)
 {
     int vertexColorLocation = glGetUniformLocation(*shaderProgram, uniformName);
-    glUseProgram(*shaderProgram);
     glUniform1i(vertexColorLocation, value);
 }
 
 void Shader::SetShaderUniformInt1f(unsigned int* shaderProgram, const char* uniformName, float value)
 {
     int vertexColorLocation = glGetUniformLocation(*shaderProgram, uniformName);
-    glUseProgram(*shaderProgram);
     glUniform1f(vertexColorLocation, value);
 }
 
 void Shader::SetShaderUniformgMatrix4fv(unsigned int* shaderProgram, const char* uniformName, glm::mat4 value)
 {
     int vertexColorLocation = glGetUniformLocation(*shaderProgram, uniformName);
-    glUseProgram(*shaderProgram);
     glUniformMatrix4fv(vertexColorLocation, 1, GL_FALSE, glm::value_ptr(value));
 }
 

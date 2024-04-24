@@ -27,6 +27,7 @@ void Engine::Run()
 		lastFrame = currentFrame;
 
 		glfwPollEvents();
+
 		Input::ProcessInput(window);
 
 		Renderer::Render();
