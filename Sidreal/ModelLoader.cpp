@@ -178,7 +178,7 @@ std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureTyp
             std::string path = "Resources\\CasOC\\";
             path.append(texturePath.C_Str());
         
-            texture.id = Texture::CreateTexture(path.c_str(), textureIndex);
+            texture.id = Texture::CreateTexture2D(path.c_str());
             texture.index = textureIndex;
             texture.type = typeName;
             texture.path = texturePath.C_Str();
@@ -211,7 +211,7 @@ std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureTyp
         {
             Texture::Texture texture;
 
-            texture.id = Texture::CreateTexture("Resources\\default.png", textureIndex);
+            texture.id = Texture::CreateTexture2D("Resources\\default.png");
             texture.index = textureIndex;
             texture.type = typeName;
             texture.path = "Resources\\default.png";

@@ -1,39 +1,71 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 #include "Engine.h"
 #include "Input.h"
 #include "Renderer.h"
+#include "Timer.h"
 
 void InitializeEngine();
 void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
+void ImGuiStatisticsWindow();
 
 GLFWwindow* window = NULL;
 int screenWidth = 0;
 int screenHeight = 0;
 
+// Timer variables
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+float averageTime[60];
+int frameNumber = 0;
+float average = 0.0f;
+
+std::unordered_map<const char*, Timer::Timer> timers;
+
+ImGuiIO io;
 
 void Engine::Run() 
 {
+	// Initialize GLFW, GLAD, and create a window
 	InitializeEngine();
 
 	// Keep the main window open
 	while (!glfwWindowShouldClose(window))
 	{
+		Timer::Start("MainLoop");
+
 		float currentFrame = static_cast<float>(glfwGetTime());
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
+		// Poll GLFW events
 		glfwPollEvents();
 
+		// Process input
 		Input::ProcessInput(window);
 
+		// Render the scene
 		Renderer::Render();
 
+		Timer::Stop("MainLoop");
+
+		// Render Dear ImGui
+		ImGuiStatisticsWindow();
+		ImGui::Render();
+		int display_w, display_h;
+		glfwGetFramebufferSize(window, &display_w, &display_h);
+		glViewport(0, 0, display_w, display_h);
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+		// Swap buffers and poll IO events
 		glfwSwapBuffers(window);
+
 	}
+
 
 	// Destrow windows and free resources
 	glfwTerminate();
@@ -58,6 +90,9 @@ void InitializeEngine()
 	}
 	glfwMakeContextCurrent(window);
 
+	// Disable vsync
+	glfwSwapInterval(0);
+
 	// Initialize GLAD before calling any OpenGL funtions since it manages function pointers for OpenGL
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
@@ -76,6 +111,21 @@ void InitializeEngine()
 
 	// Initialize input
 	Input::Initialize(window);
+
+	// Setup Dear ImGui context
+
+	timers = *Timer::GetTimerMap();
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	io = ImGui::GetIO();
+	(void)io;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls    
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls    
+
+	ImGui::StyleColorsDark();
+	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	ImGui_ImplOpenGL3_Init("#version 460");
 }
 
 void FramebufferSizeCallback(GLFWwindow* window, int width, int height) 
@@ -83,6 +133,54 @@ void FramebufferSizeCallback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 	screenWidth = width;
 	screenHeight = height;
+}
+
+void ImGuiStatisticsWindow()
+{
+	// Start the Dear ImGui frame
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+
+	// Render Dear ImGui Window
+	ImGui::NewFrame();
+	{
+		ImGui::Begin("Scene Statistics", NULL, ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::SetWindowSize(ImVec2(250, 140));
+		ImGui::SetWindowPos(ImVec2(0, 0));
+
+		if (frameNumber < 60)
+		{
+			averageTime[frameNumber] = deltaTime;
+			frameNumber++;
+		}
+		else
+		{
+			float sum = 0;
+			for (int i = 0; i < 60; i++)
+			{
+				sum += averageTime[i];
+			}
+			average = sum / 60;
+			frameNumber = 0;
+			timers = *Timer::GetTimerMap();
+		}
+
+		ImGui::Text("Main Loop: %.2f ms", average * 1000);
+		ImGui::Text("Main Loop: %.0f fps", 1 / average);
+
+		ImGui::Spacing();
+		ImGui::Spacing();
+		ImGui::Spacing();
+
+		ImGui::Text("Timers:");
+
+		for (auto& timer : timers)
+		{
+			ImGui::Text("%s %.2f ms", timer.first, timer.second.elapsedTimeMs);
+		}
+
+		ImGui::End();
+	}
 }
 
 int Engine::GetCurentScreenWidth()

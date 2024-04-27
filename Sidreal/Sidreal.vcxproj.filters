@@ -18,6 +18,12 @@
     <Filter Include="Resource\Textures">
       <UniqueIdentifier>{bf97b01a-9c86-4c21-9ce6-3b5af4bafbdb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Vendor">
+      <UniqueIdentifier>{189f42b7-e10f-410c-b66d-9bc3151f859f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Vendor\ImGui">
+      <UniqueIdentifier>{70eecb82-1a17-4184-81ac-6fa57b3a52f1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Engine.cpp">
@@ -53,6 +59,33 @@
     <ClCompile Include="MathUtils.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="ShadowVolume.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Timer.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\ImGui\imgui_widgets.cpp">
+      <Filter>Vendor\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\ImGui\imgui_demo.cpp">
+      <Filter>Vendor\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\ImGui\imgui_draw.cpp">
+      <Filter>Vendor\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\ImGui\backends\imgui_impl_glfw.cpp">
+      <Filter>Vendor\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\ImGui\backends\imgui_impl_opengl3.cpp">
+      <Filter>Vendor\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\ImGui\imgui_tables.cpp">
+      <Filter>Vendor\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\ImGui\imgui.cpp">
+      <Filter>Vendor\ImGui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine.h">
@@ -85,6 +118,33 @@
     <ClInclude Include="ModelLoader.h">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="ShadowVolume.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="Timer.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ImGui\backends\imgui_impl_glfw.h">
+      <Filter>Vendor\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ImGui\backends\imgui_impl_opengl3.h">
+      <Filter>Vendor\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ImGui\backends\imgui_impl_opengl3_loader.h">
+      <Filter>Vendor\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ImGui\imgui_internal.h">
+      <Filter>Vendor\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ImGui\imstb_rectpack.h">
+      <Filter>Vendor\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ImGui\imstb_textedit.h">
+      <Filter>Vendor\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ImGui\imstb_truetype.h">
+      <Filter>Vendor\ImGui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="lighting.vert">
@@ -97,6 +157,12 @@
       <Filter>Resource\Shaders</Filter>
     </None>
     <None Include="shadow.frag">
+      <Filter>Resource\Shaders</Filter>
+    </None>
+    <None Include="equirectangular.vert">
+      <Filter>Resource\Shaders</Filter>
+    </None>
+    <None Include="equirectangular.frag">
       <Filter>Resource\Shaders</Filter>
     </None>
   </ItemGroup>

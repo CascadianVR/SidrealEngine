@@ -206,7 +206,7 @@ Texture::Texture LoadDefaultTexture()
     // Load texture if not already loaded
     if (!defaultLoaded)
     {
-        texture.id = Texture::CreateTexture("Resources\\default.png", 20);
+        texture.id = Texture::CreateTexture2D("Resources\\default.png");
         texture.index = 21;
         texture.type = "DefaultTexture";
         texture.path = "Resources\\default.png";

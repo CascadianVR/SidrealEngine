@@ -33,8 +33,8 @@ void Camera::UpdateCamera(unsigned int* shaderProgram)
     // Perspective projection
     projection = glm::perspective(glm::radians(45.0f), (float)Engine::GetCurentScreenWidth() / (float)Engine::GetCurentScreenHeight(), 0.1f, 100.0f);
 
-    Shader::SetShaderUniformgMatrix4fv(shaderProgram, "view", view);
-    Shader::SetShaderUniformgMatrix4fv(shaderProgram, "projection", projection);
+    Shader::SetMatrix4f(shaderProgram, "view", view);
+    Shader::SetMatrix4f(shaderProgram, "projection", projection);
 }
 
 glm::vec3 Camera::GetCameraPosition()

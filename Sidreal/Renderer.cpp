@@ -1,27 +1,34 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "Camera.h"
+#include <iostream>
+#include <string>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/ext/matrix_clip_space.hpp>
+#include "Renderer.h"
 #include "MathUtils.h"
+#include "Camera.h"
 #include "MeshPrimative.h"
 #include "ModelLoader.h"
-#include "Renderer.h"
 #include "Shader.h"
 #include "Texture.h"
-#include <glm/trigonometric.hpp>
-#include <glm/ext/matrix_transform.hpp>
 #include "Engine.h"
-#include <glm/ext/matrix_clip_space.hpp>
-#include <iostream>
+#include "Timer.h"
 
-void RenderScene(unsigned int* shaderShadowProgram);
+const unsigned int ShadowMapSize = 2048 * 4;
+
 void RenderShadowPass(glm::vec3 lightPosition);
 void RenderLightingPass();
 void SetupShadowPass();
-char* LoadShader(const char* path);
+void RenderCube();
+
+
+unsigned int captureFBO;
 
 unsigned int shaderShadowProgram;
 unsigned int shaderLightingProgram;
+unsigned int shaderEquirectangularProgram;
 unsigned int* textures;
+unsigned int hdrTexture;
 
 double lastTime;
 double counter;
@@ -34,17 +41,14 @@ std::vector<ModelLoader::Model> models;
 
 void Renderer::Initialize()
 {
+
     Camera::Initialize();
 
-    // Load lighting pass shader and set texture uniforms
-    shaderLightingProgram = Shader::CreateShaderProgram("lighting.vert", "lighting.frag");
-    glUseProgram(shaderLightingProgram);
-    Shader::SetShaderUniformInt1i(&shaderLightingProgram, "tex", 0);
-    Shader::SetShaderUniformInt1i(&shaderLightingProgram, "shadowMap", 1);
+    // Load shaders for each pass and set uniforms
+    LoadShaders(false);
 
-    // Load shadow pass shader
-    shaderShadowProgram = Shader::CreateShaderProgram("shadow.vert", "shadow.frag");
-
+    hdrTexture = Texture::CreateTextureHDR("Resources\\cubemap.png");
+    glGenFramebuffers(1, &captureFBO);
 
     // Load models and set transform properties
     models.push_back(MeshPrimative::CreateCube());
@@ -66,7 +70,6 @@ void Renderer::Initialize()
     models[6].scale = glm::vec3(10.0f, 0.01f, 10.0f);
     models[6].uvTileFactor = 10.0f;
 
-
     SetupShadowPass();
 
     glEnable(GL_DEPTH_TEST);
@@ -76,6 +79,8 @@ void Renderer::Initialize()
 
 void Renderer::Render()
 {
+    Timer::Start("Full Render");
+
     double currentTime = glfwGetTime();
     double delta = currentTime - lastTime;
     lastTime = currentTime;
@@ -85,22 +90,50 @@ void Renderer::Render()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Set directional light position
-    //glm::vec3 directionalLightPosition = glm::vec3(glm::cos(glfwGetTime() * 0.5f) * 10, 5.0f, glm::sin(glfwGetTime() * 0.5f) * 10);
-    glm::vec3 directionalLightPosition = glm::vec3(10.0f, 8.0f, 10.0f);
-    Shader::SetShaderUniformVec3(&shaderLightingProgram, "lightPos", MathUtils::Vec3toFloat3(directionalLightPosition));
+    glm::vec3 directionalLightPosition = glm::vec3(glm::cos(glfwGetTime() * 0.5f) * 10, 8.0f, glm::sin(glfwGetTime() * 0.5f) * 10);
+    //glm::vec3 directionalLightPosition = glm::vec3(10.0f, 8.0f, 10.0f);
+    Shader::SetVec3f(&shaderLightingProgram, "lightPos", MathUtils::Vec3toFloat3(directionalLightPosition));
 
     // Render shadow pass
+    Timer::Start("Shadow Pass");
     RenderShadowPass(directionalLightPosition);
+    Timer::Stop("Shadow Pass");
+
+    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    glm::mat4 captureViews[] =
+    {
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+    };
+
+
+    //// convert HDR equirectangular environment map to cubemap equivalent
+    //glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    //glUseProgram(shaderEquirectangularProgram);
+    //Shader::SetInt1i(&shaderEquirectangularProgram, "equirectangularMap", 0);
+    //Shader::SetMatrix4f(&shaderEquirectangularProgram, "projection", captureProjection);
+    //glActiveTexture(GL_TEXTURE0);
+    //glBindTexture(GL_TEXTURE_2D, hdrTexture);
+    //RenderCube();
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Render lighting pass
+    Timer::Start("Lighting Pass");
     RenderLightingPass();
+    Timer::Stop("Lighting Pass");
+
+    Timer::Stop("Full Render");
 }
 
 void RenderShadowPass(glm::vec3 lightPosition)
 {
     // Set up shadow pass
     glCullFace(GL_BACK);
-    glViewport(0, 0, 4096 * 2, 4096 * 2);
+    glViewport(0, 0, ShadowMapSize, ShadowMapSize);
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
     glActiveTexture(GL_TEXTURE0);
@@ -113,7 +146,7 @@ void RenderShadowPass(glm::vec3 lightPosition)
     glm::mat4 lightView = glm::lookAt(lightPosition, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     lightSpaceMatrix = lightProjection * lightView;
 
-    Shader::SetShaderUniformgMatrix4fv(&shaderShadowProgram, "lightSpaceMatrix", lightSpaceMatrix);
+    Shader::SetMatrix4f(&shaderShadowProgram, "lightSpaceMatrix", lightSpaceMatrix);
 
     // Loop through models and draw them
     for (int i = 0; i < models.size(); i++)
@@ -136,7 +169,7 @@ void RenderShadowPass(glm::vec3 lightPosition)
             modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.z), glm::vec3(0, 0, 1));
             modelMatrix = glm::scale(modelMatrix, model.scale);
 
-            Shader::SetShaderUniformgMatrix4fv(&shaderShadowProgram, "model", modelMatrix);
+            Shader::SetMatrix4f(&shaderShadowProgram, "model", modelMatrix);
 
             // Draw mesh
             glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
@@ -159,7 +192,7 @@ void RenderLightingPass()
 
     Camera::UpdateCamera(&shaderLightingProgram);
 
-    Shader::SetShaderUniformgMatrix4fv(&shaderLightingProgram, "lightSpaceMatrix", lightSpaceMatrix);
+    Shader::SetMatrix4f(&shaderLightingProgram, "lightSpaceMatrix", lightSpaceMatrix);
 
     // Bind shadow map to texture slot 1 - only need to be bound once per pass
     Texture::SetActiveTexture(&shaderLightingProgram, &depthMap, 1);
@@ -188,9 +221,9 @@ void RenderLightingPass()
             // Set camera forward vector
             float* forward = MathUtils::Vec3toFloat3(Camera::GetCameraForward());
 
-            Shader::SetShaderUniformgMatrix4fv(&shaderLightingProgram, "model", modelMatrix);
-            Shader::SetShaderUniformVec3(&shaderLightingProgram, "cameraForward", forward);
-            Shader::SetShaderUniformInt1f(&shaderLightingProgram, "uvTileFactor", model.uvTileFactor);
+            Shader::SetMatrix4f(&shaderLightingProgram, "model", modelMatrix);
+            Shader::SetVec3f(&shaderLightingProgram, "cameraForward", forward);
+            Shader::SetInt1f(&shaderLightingProgram, "uvTileFactor", model.uvTileFactor);
 
             // Bind texture for each mesh
             if (mesh.textures.size() > 0)
@@ -210,7 +243,7 @@ void SetupShadowPass()
     glGenFramebuffers(1, &depthMapFBO);
     glGenTextures(1, &depthMap);
     glBindTexture(GL_TEXTURE_2D, depthMap);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, 4096 * 2, 4096 * 2, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, ShadowMapSize, ShadowMapSize, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
@@ -235,4 +268,83 @@ void SetupShadowPass()
 unsigned int* Renderer::GetShaderProgram()
 {
 	return &shaderLightingProgram;
+}
+
+// Summary: Load shaders for shadow and lighting passes
+// Parameters: bool reload - if true, reload existing shaders
+void Renderer::LoadShaders(bool reload)
+{
+    unsigned int lightProgram = Shader::CreateShaderProgram("lighting.vert", "lighting.frag");
+    glUseProgram(lightProgram);
+    Shader::SetInt1i(&lightProgram, "tex", 0);
+    Shader::SetInt1i(&lightProgram, "shadowMap", 1);
+
+    unsigned int shadowProgram = Shader::CreateShaderProgram("shadow.vert", "shadow.frag");
+    unsigned int equirectangularProgram = Shader::CreateShaderProgram("equirectangular.vert", "equirectangular.frag");
+
+    if (reload) {
+        glDeleteProgram(shaderLightingProgram);
+        glDeleteProgram(shaderShadowProgram);
+    }
+
+    shaderLightingProgram = lightProgram;
+    shaderShadowProgram = shadowProgram;
+    shaderEquirectangularProgram = shadowProgram;
+}
+
+void RenderCube() {
+
+    float cubeVertices[] = {
+            // positions          // texture coords
+            -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+             0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
+             0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
+            -0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
+
+            -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+             0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+             0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+            -0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+
+            -0.5f,  0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+            -0.5f, -0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+            -0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+
+             0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+             0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+             0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+             0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+
+            -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+             0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+             0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+            -0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+
+             0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+            -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+            -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+             0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+        };
+
+    unsigned int VBO, VAO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
+
+    // Position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // Normal attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    // Texture attribute
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
 }

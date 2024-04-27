@@ -11,7 +11,8 @@ namespace Texture
 		std::string path;
 	} Texture;
 
-	unsigned int CreateTexture(const char* path, unsigned int textureIndex);
+	unsigned int CreateTexture2D(const char* path);
+	unsigned int CreateTextureHDR(const char* path);
 	unsigned int CreateBindlessTexture(const char* path);
 	void SetActiveTexture(unsigned int* shaderProgram, unsigned int* texture, unsigned int index);
 	void SetActiveBindlessTexture(unsigned int* shaderProgram, unsigned int* texture);

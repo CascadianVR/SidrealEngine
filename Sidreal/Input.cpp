@@ -45,11 +45,6 @@ void Input::ProcessInput(GLFWwindow* window)
     UpdateCameraPosition(window);
     UpdateCameraRotation();
 
-    if (FindNextChangeNotification(fragShaderChanged))
-    {
-        std::cout << "Shader changed" << std::endl;
-        Shader::HotReloadShaders(Renderer::GetShaderProgram(), "lighting.vert", "lighting.frag");
-    }
 }
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -71,7 +66,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     if (key == GLFW_KEY_R && action == GLFW_PRESS && !isRKeyPressed)
     {
         isRKeyPressed = true;
-        Shader::HotReloadShaders(Renderer::GetShaderProgram(), "lighting.vert", "lighting.frag");
+        Renderer::LoadShaders(true);
     }
     else if (key == GLFW_KEY_R && action == GLFW_RELEASE)
     {

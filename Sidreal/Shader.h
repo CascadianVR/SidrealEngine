@@ -5,9 +5,8 @@
 namespace Shader
 {
     unsigned int CreateShaderProgram(const char* vertexShader, const char* fragmentShader);
-    void HotReloadShaders(unsigned int* shaderProgram, const char* vertexShaderPath, const char* fragmentShaderPath);
-    void SetShaderUniformVec3(unsigned int* shaderProgram, const char* uniformName, float vec3[3]);
-    void SetShaderUniformInt1i(unsigned int* shaderProgram, const char* uniformName, int value);
-    void SetShaderUniformInt1f(unsigned int* shaderProgram, const char* uniformName, float value);
-    void SetShaderUniformgMatrix4fv(unsigned int* shaderProgram, const char* uniformName, glm::mat4 value);
+    void SetVec3f(unsigned int* shaderProgram, const char* uniformName, float vec3[3]);
+    void SetInt1i(unsigned int* shaderProgram, const char* uniformName, int value);
+    void SetInt1f(unsigned int* shaderProgram, const char* uniformName, float value);
+    void SetMatrix4f(unsigned int* shaderProgram, const char* uniformName, glm::mat4 value);
 }

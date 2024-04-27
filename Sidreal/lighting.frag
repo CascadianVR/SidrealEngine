@@ -63,14 +63,15 @@ void main()
     vec4 textureColor = texture(colorTexture, fs_in.texCoord);
 
     // Basic soft shading
-    float shading = dot(fs_in.normal, normalize(lightPos));
-    shading  = shading / 0.1f + 0.5f; // Sharpen shadow
-    shading = clamp(shading, ambientLight.x, 1.0f);
+    //float shading = dot(fs_in.normal, normalize(lightPos));
+    //shading  = shading / 0.1f + 0.5f; // Sharpen shadow
+    //shading = clamp(shading, ambientLight.x, 1.0f);
 
     // Rim lighting
     float rimlight = max(dot(-fs_in.cameraForwardf, fs_in.normal), 0.0f) * 1 + 0.5f;
     rimlight = clamp(rimlight, 0.8f, 1.0f);
-    shading *= rimlight;
+    rimlight = 1.0f - rimlight;
+    //shading *= rimlight;
 
     // Specular
     vec3 viewDir = normalize(-viewPosition.xyz);
@@ -78,8 +79,8 @@ void main()
     vec3 halfwayDir = normalize(lightDir + viewDir);
     float spec = pow(max(dot(viewNormal, halfwayDir), 0.0f), 15.0f);
 
-    //vec3 color = shading.xxx * textureColor.xyz + (spec*0.05f);
     vec3 color = textureColor.xyz;
+    color += rimlight;
 
     float castShadows = ShadowCalculation(fs_in.fragPosLightSpace);                      
 
