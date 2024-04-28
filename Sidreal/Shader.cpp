@@ -5,8 +5,11 @@
 
 #include "Shader.h"
 #include <glm/gtc/type_ptr.hpp>
+#include <unordered_map>
 
 char* LoadShader(const char* path);
+
+std::unordered_map<const char*, int> uniformLocations;
 
 unsigned int Shader::CreateShaderProgram(const char* vertexShaderPath, const char* fragmentShaderPath)
 {
@@ -62,28 +65,42 @@ unsigned int Shader::CreateShaderProgram(const char* vertexShaderPath, const cha
     return shaderProgram;
 }
 
-void Shader::SetVec3f(unsigned int* shaderProgram, const char* uniformName, float vec3[3])
+int GetUniformLocation(unsigned int* shaderProgram, const char* uniformName)
 {
-    int vertexColorLocation = glGetUniformLocation(*shaderProgram, uniformName);
-    glUniform3f(vertexColorLocation, vec3[0], vec3[1], vec3[2]);
+    const char* lookupName = uniformName + *shaderProgram;
+
+    if (uniformLocations.find(lookupName) != uniformLocations.end())
+    {
+        return uniformLocations[lookupName];
+    }
+
+    int location = glGetUniformLocation(*shaderProgram, uniformName);
+    uniformLocations[lookupName] = location;
+    return location;
 }
 
 void Shader::SetInt1i(unsigned int* shaderProgram, const char* uniformName, int value)
 {
-    int vertexColorLocation = glGetUniformLocation(*shaderProgram, uniformName);
-    glUniform1i(vertexColorLocation, value);
+    int location = GetUniformLocation(shaderProgram, uniformName);
+    glUniform1i(location, value);
 }
 
-void Shader::SetInt1f(unsigned int* shaderProgram, const char* uniformName, float value)
+void Shader::SetUniform1f(unsigned int* shaderProgram, const char* uniformName, float value)
 {
-    int vertexColorLocation = glGetUniformLocation(*shaderProgram, uniformName);
-    glUniform1f(vertexColorLocation, value);
+    int location = GetUniformLocation(shaderProgram, uniformName);
+    glUniform1f(location, value);
+}
+
+void Shader::SetUniform3f(unsigned int* shaderProgram, const char* uniformName, float vec3[3])
+{
+    int location = GetUniformLocation(shaderProgram, uniformName);
+    glUniform3f(location, vec3[0], vec3[1], vec3[2]);
 }
 
 void Shader::SetMatrix4f(unsigned int* shaderProgram, const char* uniformName, glm::mat4 value)
 {
-    int vertexColorLocation = glGetUniformLocation(*shaderProgram, uniformName);
-    glUniformMatrix4fv(vertexColorLocation, 1, GL_FALSE, glm::value_ptr(value));
+    int location = GetUniformLocation(shaderProgram, uniformName);
+    glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
 }
 
 char* LoadShader(const char* path) {

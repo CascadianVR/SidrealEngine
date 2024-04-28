@@ -8,6 +8,7 @@
 #include "Input.h"
 #include "Renderer.h"
 #include "Timer.h"
+#include<windows.h>
 
 void InitializeEngine();
 void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
@@ -36,7 +37,7 @@ void Engine::Run()
 	// Keep the main window open
 	while (!glfwWindowShouldClose(window))
 	{
-		Timer::Start("MainLoop");
+		Timer::Start("Full Loop");
 
 		float currentFrame = static_cast<float>(glfwGetTime());
 		deltaTime = currentFrame - lastFrame;
@@ -51,21 +52,18 @@ void Engine::Run()
 		// Render the scene
 		Renderer::Render();
 
-		Timer::Stop("MainLoop");
+		Timer::Stop("Full Loop");
 
 		// Render Dear ImGui
 		ImGuiStatisticsWindow();
 		ImGui::Render();
-		int display_w, display_h;
-		glfwGetFramebufferSize(window, &display_w, &display_h);
-		glViewport(0, 0, display_w, display_h);
+		glViewport(0, 0, Engine::WINDOW_WIDTH, Engine::WINDOW_HEIGHT);
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		// Swap buffers and poll IO events
 		glfwSwapBuffers(window);
 
 	}
-
 
 	// Destrow windows and free resources
 	glfwTerminate();

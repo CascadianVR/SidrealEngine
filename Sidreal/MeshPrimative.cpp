@@ -7,6 +7,7 @@ using namespace ModelLoader;
 
 Texture::Texture LoadDefaultTexture();
 
+
 Model MeshPrimative::CreateCube()
 {
 

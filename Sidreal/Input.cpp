@@ -15,7 +15,7 @@ void UpdateCameraRotation();
 void MouseCallback(GLFWwindow* window, double xpos, double ypos);
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
-const float cameraMoveSpeed = 0.03f;
+const float cameraMoveSpeed = 5.0f;
 glm::vec3 cameraForwardTarget;
 
 bool mouseLocked = false;
@@ -100,37 +100,39 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 
 void UpdateCameraPosition(GLFWwindow* window)
 {
+    float deltaTime = Engine::GetDeltaTime();
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     {
-        cameraPosTarget += cameraMoveSpeed * Camera::GetCameraForward();
+        cameraPosTarget += cameraMoveSpeed * Camera::GetCameraForward() * deltaTime;
     }
 
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
     {
-        cameraPosTarget += cameraMoveSpeed * Camera::GetCameraForward() * -1.0f;
+        cameraPosTarget += cameraMoveSpeed * Camera::GetCameraForward() * -1.0f * deltaTime;
     }
 
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
     {
-        cameraPosTarget += cameraMoveSpeed * Camera::GetCameraRight();
+        cameraPosTarget += cameraMoveSpeed * Camera::GetCameraRight() * deltaTime;
     }
 
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     {
-        cameraPosTarget += cameraMoveSpeed * Camera::GetCameraRight() * -1.0f;
+        cameraPosTarget += cameraMoveSpeed * Camera::GetCameraRight() * -1.0f * deltaTime;
     }
 
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
     {
-        cameraPosTarget += cameraMoveSpeed * glm::vec3(0.0f, 1.0f, 0.0f);
+        cameraPosTarget += cameraMoveSpeed * glm::vec3(0.0f, 1.0f, 0.0f) * deltaTime;
     }
 
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
     {
-        cameraPosTarget += cameraMoveSpeed * glm::vec3(0.0f, 1.0f, 0.0f) * -1.0f;
+        cameraPosTarget += cameraMoveSpeed * glm::vec3(0.0f, 1.0f, 0.0f) * -1.0f * deltaTime;
     }
 
-    Camera::SetCameraPosition(MathUtils::LerpVec3(Camera::GetCameraPosition(), cameraPosTarget, Engine::GetDeltaTime() * 10.0f));
+    Camera::SetCameraPosition(MathUtils::LerpVec3(Camera::GetCameraPosition(), cameraPosTarget, deltaTime * 10.0f));
 }
 
 void UpdateCameraRotation()

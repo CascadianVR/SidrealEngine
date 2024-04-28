@@ -8,6 +8,7 @@
 #include <iostream>
 #include "ModelLoader.h"
 #include "Texture.h"
+#include <unordered_map>
 
 using namespace ModelLoader;
 
@@ -17,16 +18,24 @@ std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureTyp
 
 unsigned int textureIndex = 0;
 std::vector<Texture::Texture> loadedTextures;
+std::unordered_map<const char*, Model> loadedModels;
 
 Model ModelLoader::LoadModel(const char* path)
 {
+    std::cout << "Loading model: " << path << std::endl;
+
+    if (loadedModels.find(path) != loadedModels.end())
+    {
+		return loadedModels[path];
+	}
+
 	Assimp::Importer importer;
 
     unsigned int importOptions = aiProcess_Triangulate;
 
 	const aiScene* scene = importer.ReadFile(path, importOptions);
 	
-    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
+    if (scene == nullptr || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
         std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
     }
@@ -82,6 +91,8 @@ Model ModelLoader::LoadModel(const char* path)
     Model model;
     model.meshes = meshes;
 
+    loadedModels[path] = model;
+
     return model;
 }
 
@@ -124,6 +135,8 @@ Mesh ProcessMesh(aiMesh* aiMesh, const aiScene* scene)
 		}
 	}
 
+
+    // Load all textures of a given type
     for (unsigned int i = 0; i < aiMesh->mMaterialIndex; i++)
     {
         aiMaterial* material = scene->mMaterials[aiMesh->mMaterialIndex];
@@ -131,12 +144,21 @@ Mesh ProcessMesh(aiMesh* aiMesh, const aiScene* scene)
 		textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
     }
 
+    // Load default texture if no material was loaded
     if (aiMesh->mMaterialIndex <= 0)
     {
         aiMaterial* material = new aiMaterial();
         std::vector<Texture::Texture> diffuseMaps = LoadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
         textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
 	}
+
+    //std::cout << "Material Index: " << aiMesh->mMaterialIndex << std::endl;
+    //
+    //for (unsigned int i = 0; i < aiMesh->mNumBones; i++)
+    //{
+    //	aiBone* bone = aiMesh->mBones[i];
+    //    std::cout << "Bone: " << bone->mName.C_Str() << std::endl;
+    //}
 
     Mesh mesh;
     mesh.vertices = vertices;
@@ -149,6 +171,9 @@ Mesh ProcessMesh(aiMesh* aiMesh, const aiScene* scene)
 std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::string typeName)
 {
 	std::vector<Texture::Texture> textures;
+
+    //std::cout << "Loading textures" << std::endl;
+    //std::cout << "GetTextureCount: " << mat->GetTextureCount(type) << std::endl;
 
     // Load all textures of a given type
     for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)

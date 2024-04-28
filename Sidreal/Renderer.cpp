@@ -70,6 +70,30 @@ void Renderer::Initialize()
     models[6].scale = glm::vec3(10.0f, 0.01f, 10.0f);
     models[6].uvTileFactor = 10.0f;
 
+    // spawn 50 random CasOC models
+    
+    //for (int i = 0; i < 20; i++)
+    //{
+    //    for (int j = 0; j < 20; j++)
+    //    {
+    //        ModelLoader::Model model = ModelLoader::LoadModel("Resources\\CasOC\\CASCAS.obj");
+    //        model.position = glm::vec3(1 * i, 0.0f, 1 * j);
+    //        models.push_back(model);
+    //    }
+	//}
+
+    int drawCalls = 0;
+    for (int i = 0; i < models.size(); i++)
+    {
+        for(int j = 0; j < models[i].meshes.size(); j++)
+        {
+            drawCalls++;
+        }
+    }
+
+    std::cout << "Draw Calls: " << drawCalls << std::endl;
+
+
     SetupShadowPass();
 
     glEnable(GL_DEPTH_TEST);
@@ -92,7 +116,7 @@ void Renderer::Render()
     // Set directional light position
     glm::vec3 directionalLightPosition = glm::vec3(glm::cos(glfwGetTime() * 0.5f) * 10, 8.0f, glm::sin(glfwGetTime() * 0.5f) * 10);
     //glm::vec3 directionalLightPosition = glm::vec3(10.0f, 8.0f, 10.0f);
-    Shader::SetVec3f(&shaderLightingProgram, "lightPos", MathUtils::Vec3toFloat3(directionalLightPosition));
+    Shader::SetUniform3f(&shaderLightingProgram, "lightPos", MathUtils::Vec3toFloat3(directionalLightPosition));
 
     // Render shadow pass
     Timer::Start("Shadow Pass");
@@ -151,25 +175,24 @@ void RenderShadowPass(glm::vec3 lightPosition)
     // Loop through models and draw them
     for (int i = 0; i < models.size(); i++)
     {
-        ModelLoader::Model model = models[i];
+        ModelLoader::Model& model = models[i];
+
+        // Calculate model matrix given model position, rotation and scale
+        glm::mat4 modelMatrix = glm::mat4(1.0f);
+        modelMatrix = glm::translate(modelMatrix, model.position);
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.x), glm::vec3(1, 0, 0));
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.y), glm::vec3(0, 1, 0));
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.z), glm::vec3(0, 0, 1));
+        modelMatrix = glm::scale(modelMatrix, model.scale);
+        Shader::SetMatrix4f(&shaderShadowProgram, "model", modelMatrix);
 
         for (int j = 0; j < model.meshes.size(); j++)
         {
-            ModelLoader::Mesh mesh = models[i].meshes[j];
+            ModelLoader::Mesh& mesh = models[i].meshes[j];
 
             // Bind mesh VAO and EBO
             glBindVertexArray(mesh.VAO);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
-
-            // Calculate model matrix given model position, rotation and scale
-            glm::mat4 modelMatrix = glm::mat4(1.0f);
-            modelMatrix = glm::translate(modelMatrix, model.position);
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.x), glm::vec3(1, 0, 0));
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.y), glm::vec3(0, 1, 0));
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.z), glm::vec3(0, 0, 1));
-            modelMatrix = glm::scale(modelMatrix, model.scale);
-
-            Shader::SetMatrix4f(&shaderShadowProgram, "model", modelMatrix);
 
             // Draw mesh
             glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
@@ -193,6 +216,9 @@ void RenderLightingPass()
     Camera::UpdateCamera(&shaderLightingProgram);
 
     Shader::SetMatrix4f(&shaderLightingProgram, "lightSpaceMatrix", lightSpaceMatrix);
+    // Set camera forward vector
+    float* forward = MathUtils::Vec3toFloat3(Camera::GetCameraForward());
+    Shader::SetUniform3f(&shaderLightingProgram, "cameraForward", forward);
 
     // Bind shadow map to texture slot 1 - only need to be bound once per pass
     Texture::SetActiveTexture(&shaderLightingProgram, &depthMap, 1);
@@ -200,30 +226,26 @@ void RenderLightingPass()
     // Loop through models and draw them
     for (int i = 0; i < models.size(); i++)
     {
-        ModelLoader::Model model = models[i];
+        ModelLoader::Model& model = models[i];
+
+        // Calculate model matrix given model position, rotation and scale
+        glm::mat4 modelMatrix = glm::mat4(1.0f);
+        modelMatrix = glm::translate(modelMatrix, model.position);
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.x), glm::vec3(1, 0, 0));
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.y), glm::vec3(0, 1, 0));
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.z), glm::vec3(0, 0, 1));
+        modelMatrix = glm::scale(modelMatrix, model.scale);
+        Shader::SetMatrix4f(&shaderLightingProgram, "model", modelMatrix);
 
         for (int j = 0; j < model.meshes.size(); j++)
         {
-            ModelLoader::Mesh mesh = models[i].meshes[j];
+            ModelLoader::Mesh& mesh = models[i].meshes[j];
 
             // Bind mesh VAO and EBO
             glBindVertexArray(mesh.VAO);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
 
-            // Calculate model matrix given model position, rotation and scale
-            glm::mat4 modelMatrix = glm::mat4(1.0f);
-            modelMatrix = glm::translate(modelMatrix, model.position);
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.x), glm::vec3(1, 0, 0));
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.y), glm::vec3(0, 1, 0));
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(model.rotation.z), glm::vec3(0, 0, 1));
-            modelMatrix = glm::scale(modelMatrix, model.scale);
-
-            // Set camera forward vector
-            float* forward = MathUtils::Vec3toFloat3(Camera::GetCameraForward());
-
-            Shader::SetMatrix4f(&shaderLightingProgram, "model", modelMatrix);
-            Shader::SetVec3f(&shaderLightingProgram, "cameraForward", forward);
-            Shader::SetInt1f(&shaderLightingProgram, "uvTileFactor", model.uvTileFactor);
+            Shader::SetUniform1f(&shaderLightingProgram, "uvTileFactor", model.uvTileFactor);
 
             // Bind texture for each mesh
             if (mesh.textures.size() > 0)
@@ -240,6 +262,7 @@ void RenderLightingPass()
 void SetupShadowPass() 
 {
     // Generate new frame buffer and texture for shadow pass
+    glCullFace(GL_BACK);
     glGenFramebuffers(1, &depthMapFBO);
     glGenTextures(1, &depthMap);
     glBindTexture(GL_TEXTURE_2D, depthMap);
