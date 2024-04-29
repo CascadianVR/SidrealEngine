@@ -38,6 +38,7 @@ Model ModelLoader::LoadModel(const char* path)
     if (scene == nullptr || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
         std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
+        std::cin.get();
     }
 
     std::string stringPath = path;

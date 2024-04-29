@@ -37,6 +37,16 @@ void Camera::UpdateCamera(unsigned int* shaderProgram)
     Shader::SetMatrix4f(shaderProgram, "projection", projection);
 }
 
+glm::mat4 Camera::GetViewMatrix()
+{
+    return view; 
+}
+
+glm::mat4 Camera::GetProjectionMatrix()
+{
+    return projection;
+}
+
 glm::vec3 Camera::GetCameraPosition()
 {
     return cameraPosition;

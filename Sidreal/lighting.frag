@@ -30,7 +30,7 @@ float ShadowCalculation(vec4 fPosLightSpace)
     // calculate bias (based on depth map resolution and slope)
     vec3 normal = normalize(fs_in.normal);
     vec3 lightDir = normalize(lightPos - fs_in.worldPosition.xyz);
-    float bias = 0.005f;
+    float bias = 0.001f;
     // check whether current frag pos is in shadow
     // float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;
     // PCF

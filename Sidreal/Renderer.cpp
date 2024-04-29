@@ -14,21 +14,24 @@
 #include "Engine.h"
 #include "Timer.h"
 
-const unsigned int ShadowMapSize = 2048 * 4;
+const unsigned int ShadowMapSize = 2048 * 8;
 
 void RenderShadowPass(glm::vec3 lightPosition);
 void RenderLightingPass();
 void SetupShadowPass();
+void RenderSkybox();
 void RenderCube();
 
 
-unsigned int captureFBO;
 
 unsigned int shaderShadowProgram;
 unsigned int shaderLightingProgram;
 unsigned int shaderEquirectangularProgram;
 unsigned int* textures;
+
 unsigned int hdrTexture;
+unsigned int captureFBO;
+unsigned int textureColorbuffer;
 
 double lastTime;
 double counter;
@@ -36,6 +39,8 @@ unsigned int currentTexture;
 unsigned int depthMapFBO;
 unsigned int depthMap;
 glm::mat4 lightSpaceMatrix;
+
+ModelLoader::Model skyboxModel;
 
 std::vector<ModelLoader::Model> models;
 
@@ -47,8 +52,9 @@ void Renderer::Initialize()
     // Load shaders for each pass and set uniforms
     LoadShaders(false);
 
-    hdrTexture = Texture::CreateTextureHDR("Resources\\cubemap.png");
-    glGenFramebuffers(1, &captureFBO);
+    // Create skybox model and HDR texture
+    skyboxModel = MeshPrimative::CreateCube();
+    hdrTexture = Texture::CreateTextureHDR("Resources\\kloppenheim_06_puresky_4k.hdr");
 
     // Load models and set transform properties
     models.push_back(MeshPrimative::CreateCube());
@@ -69,18 +75,17 @@ void Renderer::Initialize()
     models[6].position = glm::vec3(0.0f, -0.01f, 0.0f);
     models[6].scale = glm::vec3(10.0f, 0.01f, 10.0f);
     models[6].uvTileFactor = 10.0f;
-
-    // spawn 50 random CasOC models
     
-    //for (int i = 0; i < 20; i++)
-    //{
-    //    for (int j = 0; j < 20; j++)
-    //    {
-    //        ModelLoader::Model model = ModelLoader::LoadModel("Resources\\CasOC\\CASCAS.obj");
-    //        model.position = glm::vec3(1 * i, 0.0f, 1 * j);
-    //        models.push_back(model);
-    //    }
-	//}
+    // spawn 50 random CasOC models
+    for (int i = 0; i < 20; i++)
+    {
+        for (int j = 0; j < 20; j++)
+        {
+            ModelLoader::Model model = ModelLoader::LoadModel("Resources\\CasOC\\CASCAS.obj");
+            model.position = glm::vec3(1 * i, 0.0f, 1 * j);
+            models.push_back(model);
+        }
+	}
 
     int drawCalls = 0;
     for (int i = 0; i < models.size(); i++)
@@ -123,27 +128,6 @@ void Renderer::Render()
     RenderShadowPass(directionalLightPosition);
     Timer::Stop("Shadow Pass");
 
-    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-    glm::mat4 captureViews[] =
-    {
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
-    };
-
-
-    //// convert HDR equirectangular environment map to cubemap equivalent
-    //glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-    //glUseProgram(shaderEquirectangularProgram);
-    //Shader::SetInt1i(&shaderEquirectangularProgram, "equirectangularMap", 0);
-    //Shader::SetMatrix4f(&shaderEquirectangularProgram, "projection", captureProjection);
-    //glActiveTexture(GL_TEXTURE0);
-    //glBindTexture(GL_TEXTURE_2D, hdrTexture);
-    //RenderCube();
-    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Render lighting pass
     Timer::Start("Lighting Pass");
@@ -205,10 +189,17 @@ void RenderShadowPass(glm::vec3 lightPosition)
 void RenderLightingPass()
 {
     // Set up lighting pass
-    glCullFace(GL_BACK);
     glViewport(0, 0, Engine::GetCurentScreenWidth(), Engine::GetCurentScreenHeight());
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    RenderSkybox();
+
+    glDepthFunc(GL_LESS);
+    glCullFace(GL_BACK);
+    glClear( GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
 
     // Shader program to use for lighting pass
     glUseProgram(shaderLightingProgram);
@@ -222,7 +213,6 @@ void RenderLightingPass()
 
     // Bind shadow map to texture slot 1 - only need to be bound once per pass
     Texture::SetActiveTexture(&shaderLightingProgram, &depthMap, 1);
-
     // Loop through models and draw them
     for (int i = 0; i < models.size(); i++)
     {
@@ -257,6 +247,7 @@ void RenderLightingPass()
             glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
         }
     }
+
 }
 
 void SetupShadowPass() 
@@ -303,7 +294,10 @@ void Renderer::LoadShaders(bool reload)
     Shader::SetInt1i(&lightProgram, "shadowMap", 1);
 
     unsigned int shadowProgram = Shader::CreateShaderProgram("shadow.vert", "shadow.frag");
+
     unsigned int equirectangularProgram = Shader::CreateShaderProgram("equirectangular.vert", "equirectangular.frag");
+    glUseProgram(equirectangularProgram);
+    Shader::SetInt1i(&equirectangularProgram, "equirectangularMap", 0);
 
     if (reload) {
         glDeleteProgram(shaderLightingProgram);
@@ -312,62 +306,31 @@ void Renderer::LoadShaders(bool reload)
 
     shaderLightingProgram = lightProgram;
     shaderShadowProgram = shadowProgram;
-    shaderEquirectangularProgram = shadowProgram;
+    shaderEquirectangularProgram = equirectangularProgram;
 }
 
-void RenderCube() {
+void RenderSkybox()
+{
+    glCullFace(GL_FRONT);
 
-    float cubeVertices[] = {
-            // positions          // texture coords
-            -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
-             0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
-             0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
-            -0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
+    // draw skybox as last
+    glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
+    glUseProgram(shaderEquirectangularProgram);
+    glm::mat4 view = glm::mat4(glm::mat3(Camera::GetViewMatrix())); // remove translation from the view matrix
+    Shader::SetMatrix4f(&shaderEquirectangularProgram, "view", view);
+    Shader::SetMatrix4f(&shaderEquirectangularProgram, "projection", Camera::GetProjectionMatrix());
+    
+    // skybox cube
+    ModelLoader::Mesh& mesh = skyboxModel.meshes[0];
+    glBindVertexArray(mesh.VAO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
 
-            -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-             0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-             0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-            -0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, hdrTexture);
 
-            -0.5f,  0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-            -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-            -0.5f, -0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-            -0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+    glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
 
-             0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-             0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-             0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-             0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-
-            -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-             0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-             0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
-            -0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
-
-             0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-            -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-            -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-             0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-        };
-
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
-
-    // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    // Normal attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    // Texture attribute
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-
-    glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
+    glDepthFunc(GL_LESS);
+
 }
