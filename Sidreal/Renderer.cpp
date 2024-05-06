@@ -13,16 +13,14 @@
 #include "Texture.h"
 #include "Engine.h"
 #include "Timer.h"
+#include "AssetLoader.h"
 
-const unsigned int ShadowMapSize = 2048 * 8;
+const unsigned int ShadowMapSize = 2048 * 2;
 
 void RenderShadowPass(glm::vec3 lightPosition);
 void RenderLightingPass();
 void SetupShadowPass();
 void RenderSkybox();
-void RenderCube();
-
-
 
 unsigned int shaderShadowProgram;
 unsigned int shaderLightingProgram;
@@ -46,7 +44,6 @@ std::vector<ModelLoader::Model> models;
 
 void Renderer::Initialize()
 {
-
     Camera::Initialize();
 
     // Load shaders for each pass and set uniforms
@@ -55,38 +52,41 @@ void Renderer::Initialize()
     // Create skybox model and HDR texture
     skyboxModel = MeshPrimative::CreateCube();
     hdrTexture = Texture::CreateTextureHDR("Resources\\kloppenheim_06_puresky_4k.hdr");
+    
+	models = AssetLoader::LoadAllAssets();
 
-    // Load models and set transform properties
-    models.push_back(MeshPrimative::CreateCube());
-    models.push_back(ModelLoader::LoadModel("Resources\\CasOC\\CASCAS.obj"));
-    models.push_back(ModelLoader::LoadModel("Resources\\CUBE.obj"));
-    models.push_back(ModelLoader::LoadModel("Resources\\Office.obj"));
-    models.push_back(ModelLoader::LoadModel("Resources\\sphere.fbx"));
-    models.push_back(MeshPrimative::CreateQuad());
-    models.push_back(ModelLoader::LoadModel("Resources\\CUBE.obj"));
-
-    models[0].position = glm::vec3(-0.5f, 1.0f, 0.0f);
-    models[1].position = glm::vec3(2.0f, 0.0f, 0.0f);
-    models[2].position = glm::vec3(6.5f, 1.0f, 0.0f);
-    models[3].position = glm::vec3(-8.0f, 0.0f, 0.0f);
-    models[4].position = glm::vec3(-2.5f, 1.0f, 0.0f);
-    models[5].position = glm::vec3(-4.0f, 2.0f, 0.0f);
-    models[5].rotation = glm::vec3(0.0f, 180.0f, 0.0f);
-    models[6].position = glm::vec3(0.0f, -0.01f, 0.0f);
-    models[6].scale = glm::vec3(10.0f, 0.01f, 10.0f);
-    models[6].uvTileFactor = 10.0f;
+    //// Load models and set transform properties
+    //models.push_back(MeshPrimative::CreateCube());
+    ////models.push_back(ModelLoader::LoadModel("Resources\\CasOC\\CASCAS.obj"));
+    //models.push_back(ModelLoader::LoadModel("Resources\\CUBE.obj"));
+    //models.push_back(ModelLoader::LoadModel("Resources\\Office.obj"));
+    //models.push_back(ModelLoader::LoadModel("Resources\\sphere.fbx"));
+    //models.push_back(MeshPrimative::CreateQuad());
+    //models.push_back(ModelLoader::LoadModel("Resources\\CUBE.obj"));
+    //
+    //models[0].position = glm::vec3(-0.5f, 1.0f, 0.0f);
+    ////models[1].position = glm::vec3(2.0f, 0.0f, 0.0f);
+    //models[1].position = glm::vec3(6.5f, 1.0f, 0.0f);
+    //models[2].position = glm::vec3(-8.0f, 0.0f, 0.0f);
+    //models[3].position = glm::vec3(-2.5f, 1.0f, 0.0f);
+    //models[4].position = glm::vec3(-4.0f, 2.0f, 0.0f);
+    //models[4].rotation = glm::vec3(0.0f, 180.0f, 0.0f);
+    //models[5].position = glm::vec3(0.0f, -0.01f, 0.0f);
+    //models[5].scale = glm::vec3(10.0f, 0.01f, 10.0f);
+    //models[5].uvTileFactor = 10.0f;
     
     // spawn 50 random CasOC models
-    for (int i = 0; i < 20; i++)
-    {
-        for (int j = 0; j < 20; j++)
-        {
-            ModelLoader::Model model = ModelLoader::LoadModel("Resources\\CasOC\\CASCAS.obj");
-            model.position = glm::vec3(1 * i, 0.0f, 1 * j);
-            models.push_back(model);
-        }
-	}
+    //for (int i = 0; i < 20; i++)
+    //{
+    //    for (int j = 0; j < 20; j++)
+    //    {
+    //        ModelLoader::Model model = ModelLoader::LoadModel("Resources\\CasOC\\CASCAS.obj");
+    //        model.position = glm::vec3(1 * i, 0.0f, 1 * j);
+    //        models.push_back(model);
+    //    }
+	//}
 
+    // Calculate the rough number of draw calls.
     int drawCalls = 0;
     for (int i = 0; i < models.size(); i++)
     {
@@ -95,15 +95,17 @@ void Renderer::Initialize()
             drawCalls++;
         }
     }
-
+    drawCalls *= 2; // Shadow pass 
+    drawCalls += 1; // Skybox
     std::cout << "Draw Calls: " << drawCalls << std::endl;
 
-
+    // Initialize shadow pass for rendering
     SetupShadowPass();
 
+    // Enable OpenGL features we want to use
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_MULTISAMPLE);
     glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
 }
 
 void Renderer::Render()
@@ -113,7 +115,6 @@ void Renderer::Render()
     double currentTime = glfwGetTime();
     double delta = currentTime - lastTime;
     lastTime = currentTime;
-    counter += delta;
 
     glClearColor(0.0f, 1.0f, 0.5f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -194,6 +195,7 @@ void RenderLightingPass()
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    // Render skybox seperate and behind from everything else
     RenderSkybox();
 
     glDepthFunc(GL_LESS);
@@ -288,22 +290,28 @@ unsigned int* Renderer::GetShaderProgram()
 // Parameters: bool reload - if true, reload existing shaders
 void Renderer::LoadShaders(bool reload)
 {
+    // Create shader for main lighting pass and setup texture targets
     unsigned int lightProgram = Shader::CreateShaderProgram("lighting.vert", "lighting.frag");
     glUseProgram(lightProgram);
     Shader::SetInt1i(&lightProgram, "tex", 0);
     Shader::SetInt1i(&lightProgram, "shadowMap", 1);
 
+    // Create shadr for shadow mapping
     unsigned int shadowProgram = Shader::CreateShaderProgram("shadow.vert", "shadow.frag");
 
+    // Create shader for skybox and setup texture target
     unsigned int equirectangularProgram = Shader::CreateShaderProgram("equirectangular.vert", "equirectangular.frag");
     glUseProgram(equirectangularProgram);
     Shader::SetInt1i(&equirectangularProgram, "equirectangularMap", 0);
 
+    // If hot reloading shaders, destroy previous ones before loading new ones
     if (reload) {
         glDeleteProgram(shaderLightingProgram);
         glDeleteProgram(shaderShadowProgram);
+        glDeleteProgram(shaderEquirectangularProgram);
     }
 
+    // Assign newly loaded shaders to be used
     shaderLightingProgram = lightProgram;
     shaderShadowProgram = shadowProgram;
     shaderEquirectangularProgram = equirectangularProgram;
@@ -311,16 +319,20 @@ void Renderer::LoadShaders(bool reload)
 
 void RenderSkybox()
 {
+    // Only render the inside
     glCullFace(GL_FRONT);
 
-    // draw skybox as last
-    glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
+    // Draw skybox behind everything else
+    glDepthFunc(GL_LEQUAL);
     glUseProgram(shaderEquirectangularProgram);
-    glm::mat4 view = glm::mat4(glm::mat3(Camera::GetViewMatrix())); // remove translation from the view matrix
+
+    // Leaving the left column and bottom row as zero removes any transform from the camera.
+    // This keeps it directly placed around the camera's view.
+    glm::mat4 view = glm::mat4(glm::mat3(Camera::GetViewMatrix()));
     Shader::SetMatrix4f(&shaderEquirectangularProgram, "view", view);
     Shader::SetMatrix4f(&shaderEquirectangularProgram, "projection", Camera::GetProjectionMatrix());
     
-    // skybox cube
+    // Render the skybox cube mesh
     ModelLoader::Mesh& mesh = skyboxModel.meshes[0];
     glBindVertexArray(mesh.VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
@@ -330,6 +342,7 @@ void RenderSkybox()
 
     glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
 
+    // Unbind vertex array and set depth func back to default
     glBindVertexArray(0);
     glDepthFunc(GL_LESS);
 

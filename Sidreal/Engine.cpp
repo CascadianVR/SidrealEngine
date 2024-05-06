@@ -14,6 +14,8 @@ void InitializeEngine();
 void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
 void ImGuiStatisticsWindow();
 
+const int MSAA_SAMPLES = 4;
+
 GLFWwindow* window = NULL;
 int screenWidth = 0;
 int screenHeight = 0;
@@ -77,6 +79,7 @@ void InitializeEngine()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_SAMPLES, MSAA_SAMPLES);
 
 	// Attempt to create a GLFW window and set it to the current context
 	window = glfwCreateWindow(Engine::WINDOW_WIDTH, Engine::WINDOW_HEIGHT, "SidrealEngine", NULL, NULL);

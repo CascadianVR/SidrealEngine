@@ -26,6 +26,7 @@
     <ClCompile Include="..\include\ImGui\imgui_draw.cpp" />
     <ClCompile Include="..\include\ImGui\imgui_tables.cpp" />
     <ClCompile Include="..\include\ImGui\imgui_widgets.cpp" />
+    <ClCompile Include="AssetLoader.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="glad.c" />
@@ -48,6 +49,7 @@
     <ClInclude Include="..\include\ImGui\imstb_rectpack.h" />
     <ClInclude Include="..\include\ImGui\imstb_textedit.h" />
     <ClInclude Include="..\include\ImGui\imstb_truetype.h" />
+    <ClInclude Include="AssetLoader.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Engine.h" />
     <ClInclude Include="Input.h" />
@@ -66,6 +68,7 @@
     <None Include="equirectangular.vert" />
     <None Include="lighting.frag" />
     <None Include="lighting.vert" />
+    <None Include="Resources\SceneConfig.json" />
     <None Include="shadow.frag" />
     <None Include="shadow.vert" />
   </ItemGroup>
@@ -129,7 +132,7 @@
     <IncludePath>$(SolutionDir)\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(SolutionDir)\include\ImGui\backends;$(SolutionDir)\include\ImGui;$(SolutionDir)\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)\include\ImGui\backends;$(SolutionDir)\include\ImGui;$(SolutionDir)\include\yaml-cpp;$(SolutionDir)\include;$(IncludePath)</IncludePath>
     <LibraryPath>F:\Repositories\SidrealEngine\include\ImGui;$(SolutionDir)\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -189,7 +192,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>glfw3.lib;opengl32.lib;assimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glfw3.lib;opengl32.lib;assimp.lib;yaml-cpp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /s /y /i /d /c "$(ProjectDir)Resources" "$(OutDir)Resources"</Command>

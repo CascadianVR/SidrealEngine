@@ -16,6 +16,7 @@ void ProcessNode(aiNode* node, const aiScene* scene, std::vector<Mesh>* meshes);
 Mesh ProcessMesh(aiMesh* mesh, const aiScene* scene);
 std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::string typeName);
 
+const char* currentModelPath = nullptr;
 unsigned int textureIndex = 0;
 std::vector<Texture::Texture> loadedTextures;
 std::unordered_map<const char*, Model> loadedModels;
@@ -23,6 +24,7 @@ std::unordered_map<const char*, Model> loadedModels;
 Model ModelLoader::LoadModel(const char* path)
 {
     std::cout << "Loading model: " << path << std::endl;
+	currentModelPath = path;
 
     if (loadedModels.find(path) != loadedModels.end())
     {
@@ -201,7 +203,11 @@ std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureTyp
         {
             Texture::Texture texture;
         
-            std::string path = "Resources\\CasOC\\";
+			// Get directory of model
+			std::string path = std::string(currentModelPath).substr(0, std::string(currentModelPath).find_last_of('/'));
+            
+			std::cout << "Texture Path: " << path << std::endl;
+
             path.append(texturePath.C_Str());
         
             texture.id = Texture::CreateTexture2D(path.c_str());

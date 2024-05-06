@@ -86,6 +86,9 @@
     <ClCompile Include="..\include\ImGui\imgui.cpp">
       <Filter>Vendor\ImGui</Filter>
     </ClCompile>
+    <ClCompile Include="AssetLoader.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine.h">
@@ -145,6 +148,9 @@
     <ClInclude Include="..\include\ImGui\imstb_truetype.h">
       <Filter>Vendor\ImGui</Filter>
     </ClInclude>
+    <ClInclude Include="AssetLoader.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="lighting.vert">
@@ -164,6 +170,9 @@
     </None>
     <None Include="equirectangular.frag">
       <Filter>Resource\Shaders</Filter>
+    </None>
+    <None Include="Resources\SceneConfig.json">
+      <Filter>Resource</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

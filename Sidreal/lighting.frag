@@ -32,10 +32,10 @@ float ShadowCalculation(vec4 fPosLightSpace)
     vec3 lightDir = normalize(lightPos - fs_in.worldPosition.xyz);
     float bias = 0.001f;
     // check whether current frag pos is in shadow
-    // float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;
+    //float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;
     // PCF
     float shadow = 0.0;
-    vec2 texelSize = 1f / textureSize(shadowMap, 0);
+    vec2 texelSize = 1.0f / textureSize(shadowMap, 0);
     for(int x = -1; x <= 1; ++x)
     {
         for(int y = -1; y <= 1; ++y)
@@ -51,6 +51,39 @@ float ShadowCalculation(vec4 fPosLightSpace)
         shadow = 0.0;
         
     return 1.0f-shadow;
+}
+
+const float offset = 1.0 / 300.0;  
+vec3 BlurShadow()
+{
+    vec2 offsets[9] = vec2[](
+        vec2(-offset,  offset), // top-left
+        vec2( 0.0f,    offset), // top-center
+        vec2( offset,  offset), // top-right
+        vec2(-offset,  0.0f),   // center-left
+        vec2( 0.0f,    0.0f),   // center-center
+        vec2( offset,  0.0f),   // center-right
+        vec2(-offset, -offset), // bottom-left
+        vec2( 0.0f,   -offset), // bottom-center
+        vec2( offset, -offset)  // bottom-right    
+    );
+
+    float kernel[9] = float[](
+        (1.0f / 16.0f), (2.0f / 16.0f), (1.0f / 16.0f),  
+        (1.0f / 16.0f), (2.0f / 16.0f), (1.0f / 16.0f),
+        (2.0f / 16.0f), (4.0f / 16.0f), (2.0f / 16.0f)
+    );
+    
+    vec3 sampleTex[9];
+    for(int i = 0; i < 9; i++)
+    {
+        sampleTex[i] = vec3(texture(shadowMap, fs_in.texCoord.st + offsets[i]));
+    }
+    vec3 col = vec3(0.0);
+    for(int i = 0; i < 9; i++)
+        col += sampleTex[i] * kernel[i];
+
+    return col;
 }
 
 void main()
@@ -77,13 +110,13 @@ void main()
     vec3 viewDir = normalize(-viewPosition.xyz);
     vec3 lightDir = normalize(lightPos - viewPosition.xyz);
     vec3 halfwayDir = normalize(lightDir + viewDir);
-    float spec = pow(max(dot(viewNormal, halfwayDir), 0.0f), 15.0f);
+    float spec = pow(max(dot(viewNormal, halfwayDir), 0.0f), 25.0f);
 
     vec3 color = textureColor.xyz;
     color += rimlight;
+    color += spec * 0.2f;
 
     float castShadows = ShadowCalculation(fs_in.fragPosLightSpace);                      
-
     color = color * (max(castShadows.xxx, ambientLight));
 
     FragColor = vec4(color, 1.0f);
