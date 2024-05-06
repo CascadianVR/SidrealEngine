@@ -110,11 +110,11 @@ void main()
     vec3 viewDir = normalize(-viewPosition.xyz);
     vec3 lightDir = normalize(lightPos - viewPosition.xyz);
     vec3 halfwayDir = normalize(lightDir + viewDir);
-    float spec = pow(max(dot(viewNormal, halfwayDir), 0.0f), 25.0f);
+    float spec = pow(max(dot(viewNormal, halfwayDir), 0.0f), 15.0f);
 
     vec3 color = textureColor.xyz;
     color += rimlight;
-    color += spec * 0.2f;
+    color += spec * 0.1f;
 
     float castShadows = ShadowCalculation(fs_in.fragPosLightSpace);                      
     color = color * (max(castShadows.xxx, ambientLight));

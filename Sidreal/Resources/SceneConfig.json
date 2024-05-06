@@ -1,25 +1,35 @@
 {
-	"Version": "0.0.1",
-	"Scene": {
-        "Cube": {
-            "Path": "Resources\\CUBE.obj",
-            "Position": [0.0, 1.0, 0.0]
-        },
-		"Floor": {
-            "Path": "Resources\\CUBE.obj",
-            "Scale": [10.0, 0.01, 10.0],
-			"UVTileFactor": 10.0
-        },
-        "Office": {
-			"Path": "Resources\\Office.obj"
-		},
-        "Sphere": {
-			"Path": "Resources\\sphere.fbx",
-			"Position": [-4.0, 1.0, 0.0]
-		},
-		"Barrel": {
-			"Path": "Resources\\Barrel\\untitled.obj",
-			"Position": [4.0, 1.0, 0.0]
-		}
-	}
+  "Version": "0.0.1",
+
+  "Scene": {
+    "Cube": {
+      "Path": "Resources\\CUBE.obj",
+      "Position": [ 0.0, 1.0, 0.0 ]
+    },
+    "Floor": {
+      "Path": "Resources\\CUBE.obj",
+      "Scale": [ 10.0, 0.01, 10.0 ],
+      "UVTileFactor": 10.0
+    },
+    "Office": {
+      "Path": "Resources\\Office.obj"
+    },
+    "Sphere": {
+      "Path": "Resources\\sphere.fbx",
+      "Position": [ -4.0, 1.0, 0.0 ]
+    },
+    "Barrel": {
+      "Path": "Resources\\Barrel\\untitled.obj",
+      "Position": [ 4.0, 1.0, 0.0 ]
+    },
+    "Cas": {
+      "Path": "Resources\\CasOC\\CASCAS.obj",
+      "Position": [ -2.0, 0.0, 0.0 ]
+    },
+    "Quad": {
+      "Path": "Resources\\quad.obj",
+      "Position": [ -2.0, 4.0, 0.0 ],
+      "Rotation": [ -90.0, 0.0, 180.0 ]
+    }
+  }
 }

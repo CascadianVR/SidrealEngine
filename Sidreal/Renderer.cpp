@@ -15,7 +15,7 @@
 #include "Timer.h"
 #include "AssetLoader.h"
 
-const unsigned int ShadowMapSize = 2048 * 2;
+const unsigned int ShadowMapSize = 2048 * 8;
 
 void RenderShadowPass(glm::vec3 lightPosition);
 void RenderLightingPass();
@@ -54,28 +54,8 @@ void Renderer::Initialize()
     hdrTexture = Texture::CreateTextureHDR("Resources\\kloppenheim_06_puresky_4k.hdr");
     
 	models = AssetLoader::LoadAllAssets();
-
-    //// Load models and set transform properties
-    //models.push_back(MeshPrimative::CreateCube());
-    ////models.push_back(ModelLoader::LoadModel("Resources\\CasOC\\CASCAS.obj"));
-    //models.push_back(ModelLoader::LoadModel("Resources\\CUBE.obj"));
-    //models.push_back(ModelLoader::LoadModel("Resources\\Office.obj"));
-    //models.push_back(ModelLoader::LoadModel("Resources\\sphere.fbx"));
-    //models.push_back(MeshPrimative::CreateQuad());
-    //models.push_back(ModelLoader::LoadModel("Resources\\CUBE.obj"));
-    //
-    //models[0].position = glm::vec3(-0.5f, 1.0f, 0.0f);
-    ////models[1].position = glm::vec3(2.0f, 0.0f, 0.0f);
-    //models[1].position = glm::vec3(6.5f, 1.0f, 0.0f);
-    //models[2].position = glm::vec3(-8.0f, 0.0f, 0.0f);
-    //models[3].position = glm::vec3(-2.5f, 1.0f, 0.0f);
-    //models[4].position = glm::vec3(-4.0f, 2.0f, 0.0f);
-    //models[4].rotation = glm::vec3(0.0f, 180.0f, 0.0f);
-    //models[5].position = glm::vec3(0.0f, -0.01f, 0.0f);
-    //models[5].scale = glm::vec3(10.0f, 0.01f, 10.0f);
-    //models[5].uvTileFactor = 10.0f;
     
-    // spawn 50 random CasOC models
+    //// spawn 50 random CasOC models
     //for (int i = 0; i < 20; i++)
     //{
     //    for (int j = 0; j < 20; j++)
@@ -120,8 +100,9 @@ void Renderer::Render()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Set directional light position
-    glm::vec3 directionalLightPosition = glm::vec3(glm::cos(glfwGetTime() * 0.5f) * 10, 8.0f, glm::sin(glfwGetTime() * 0.5f) * 10);
-    //glm::vec3 directionalLightPosition = glm::vec3(10.0f, 8.0f, 10.0f);
+    //glm::vec3 directionalLightPosition = glm::vec3(glm::cos(glfwGetTime() * 0.5f) * 10, 8.0f, glm::sin(glfwGetTime() * 0.5f) * 10);
+    glm::vec3 directionalLightPosition = glm::vec3(10.0f, 8.0f, 10.0f);
+    directionalLightPosition += Camera::GetCameraPosition();
     Shader::SetUniform3f(&shaderLightingProgram, "lightPos", MathUtils::Vec3toFloat3(directionalLightPosition));
 
     // Render shadow pass
@@ -150,9 +131,9 @@ void RenderShadowPass(glm::vec3 lightPosition)
     // Shader program to use for shadow pass
     glUseProgram(shaderShadowProgram);
 
-    float near_plane = 1.0f, far_plane = 25.0f;
-    glm::mat4 lightProjection = glm::ortho(-8.0f, 8.0f, -8.0f, 8.0f, near_plane, far_plane);
-    glm::mat4 lightView = glm::lookAt(lightPosition, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    float near_plane = 1.0f, far_plane = 40.0f;
+    glm::mat4 lightProjection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, near_plane, far_plane);
+    glm::mat4 lightView = glm::lookAt(lightPosition, lightPosition + glm::vec3(-0.5f, -1.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     lightSpaceMatrix = lightProjection * lightView;
 
     Shader::SetMatrix4f(&shaderShadowProgram, "lightSpaceMatrix", lightSpaceMatrix);
@@ -245,6 +226,10 @@ void RenderLightingPass()
                 Texture::SetActiveTexture(&shaderLightingProgram, &mesh.textures[0].id, 0);
             }
 
+            if (i == 5) {
+                Texture::SetActiveTexture(&shaderLightingProgram, &depthMap, 0);
+            }
+
             // Draw mesh
             glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
         }
@@ -260,8 +245,8 @@ void SetupShadowPass()
     glGenTextures(1, &depthMap);
     glBindTexture(GL_TEXTURE_2D, depthMap);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, ShadowMapSize, ShadowMapSize, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 

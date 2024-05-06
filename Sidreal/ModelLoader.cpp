@@ -204,10 +204,16 @@ std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureTyp
             Texture::Texture texture;
         
 			// Get directory of model
-			std::string path = std::string(currentModelPath).substr(0, std::string(currentModelPath).find_last_of('/'));
-            
-			std::cout << "Texture Path: " << path << std::endl;
+			std::string path = std::string(currentModelPath);
+            size_t found = path.find_last_of("/\\");
+            if (found != std::string::npos)
+            {
+                path = path.substr(0, found);
+            }
 
+			std::cout << "Texture Pathaaaa: " << path << std::endl;
+
+            path.append("\\");
             path.append(texturePath.C_Str());
         
             texture.id = Texture::CreateTexture2D(path.c_str());

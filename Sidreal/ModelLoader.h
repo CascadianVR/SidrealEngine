@@ -6,14 +6,14 @@
 
 namespace ModelLoader
 {
-	typedef struct Vertex
+	struct Vertex
 	{
 		glm::vec3 Position;
 		glm::vec3 Normal;
 		glm::vec2 TexCoords;
 	};
 
-	typedef struct Mesh
+	struct Mesh
 	{
 		unsigned int VAO;
 		unsigned int VBO;
@@ -23,7 +23,7 @@ namespace ModelLoader
 		std::vector<Texture::Texture> textures;
 	};
 
-	typedef struct Model
+	struct Model
 	{
 		std::vector<Mesh> meshes;
 		glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
