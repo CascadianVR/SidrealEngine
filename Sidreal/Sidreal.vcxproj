@@ -30,6 +30,7 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="glad.c" />
+    <ClCompile Include="GLTFLoader.cpp" />
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MathUtils.cpp" />
@@ -52,6 +53,7 @@
     <ClInclude Include="AssetLoader.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Engine.h" />
+    <ClInclude Include="GLTFLoader.h" />
     <ClInclude Include="Input.h" />
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="ModelLoader.h" />

@@ -11,6 +11,7 @@ out VS_OUT {
     vec2 texCoord;
     vec3 cameraForwardf;
     vec4 fragPosLightSpace;
+    mat4 lightSpaceMatrix;
 } vs_out;
 
 uniform mat4 model;
@@ -33,4 +34,5 @@ void main()
     vs_out.texCoord = aTexCoord * uvTileFactor;
     vs_out.cameraForwardf = cameraForward;
     vs_out.fragPosLightSpace = lightSpaceMatrix * vs_out.worldPosition;
+    vs_out.lightSpaceMatrix = lightSpaceMatrix;
 }

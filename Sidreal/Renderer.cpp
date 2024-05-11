@@ -1,7 +1,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include <string>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 #include "Renderer.h"
@@ -14,6 +13,7 @@
 #include "Engine.h"
 #include "Timer.h"
 #include "AssetLoader.h"
+#include "GLTFLoader.h"
 
 const unsigned int ShadowMapSize = 2048 * 8;
 
@@ -53,8 +53,17 @@ void Renderer::Initialize()
     skyboxModel = MeshPrimative::CreateCube();
     hdrTexture = Texture::CreateTextureHDR("Resources\\kloppenheim_06_puresky_4k.hdr");
     
-	models = AssetLoader::LoadAllAssets();
+	//models = AssetLoader::LoadAllAssets();
+
+    models.push_back(GLTFLoader::LoadBinary("Resources\\CasOC\\CasGLTF.glb"));
+    models[0].uvTileFactor = 5.0f;
+    models[0].rotation = glm::vec3(90.0f, 0.0f, 0.0f);
+    models[0].scale = glm::vec3(0.8f, 0.8f, 0.8f);
     
+    models.push_back(GLTFLoader::LoadBinary("Resources\\office.glb"));
+    models[1].uvTileFactor = 5.0f;
+    models[1].position = glm::vec3(0.0f, 3.4f, 0.0f);
+   
     //// spawn 50 random CasOC models
     //for (int i = 0; i < 20; i++)
     //{
@@ -74,6 +83,7 @@ void Renderer::Initialize()
         {
             drawCalls++;
         }
+        std::cout << "Model " << i << " has " << models[i].meshes.size() << " meshes" << std::endl;
     }
     drawCalls *= 2; // Shadow pass 
     drawCalls += 1; // Skybox
@@ -90,8 +100,6 @@ void Renderer::Initialize()
 
 void Renderer::Render()
 {
-    Timer::Start("Full Render");
-
     double currentTime = glfwGetTime();
     double delta = currentTime - lastTime;
     lastTime = currentTime;
@@ -115,8 +123,6 @@ void Renderer::Render()
     Timer::Start("Lighting Pass");
     RenderLightingPass();
     Timer::Stop("Lighting Pass");
-
-    Timer::Stop("Full Render");
 }
 
 void RenderShadowPass(glm::vec3 lightPosition)
@@ -141,6 +147,7 @@ void RenderShadowPass(glm::vec3 lightPosition)
     // Loop through models and draw them
     for (int i = 0; i < models.size(); i++)
     {
+        // Get model reference
         ModelLoader::Model& model = models[i];
 
         // Calculate model matrix given model position, rotation and scale
@@ -179,7 +186,9 @@ void RenderLightingPass()
     // Render skybox seperate and behind from everything else
     RenderSkybox();
 
+    // Set up lighting pass
     glDepthFunc(GL_LESS);
+    glDisable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glClear( GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
@@ -226,10 +235,6 @@ void RenderLightingPass()
                 Texture::SetActiveTexture(&shaderLightingProgram, &mesh.textures[0].id, 0);
             }
 
-            if (i == 5) {
-                Texture::SetActiveTexture(&shaderLightingProgram, &depthMap, 0);
-            }
-
             // Draw mesh
             glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
         }
@@ -266,11 +271,6 @@ void SetupShadowPass()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-unsigned int* Renderer::GetShaderProgram()
-{
-	return &shaderLightingProgram;
-}
-
 // Summary: Load shaders for shadow and lighting passes
 // Parameters: bool reload - if true, reload existing shaders
 void Renderer::LoadShaders(bool reload)
@@ -290,7 +290,8 @@ void Renderer::LoadShaders(bool reload)
     Shader::SetInt1i(&equirectangularProgram, "equirectangularMap", 0);
 
     // If hot reloading shaders, destroy previous ones before loading new ones
-    if (reload) {
+    if (reload)
+    {
         glDeleteProgram(shaderLightingProgram);
         glDeleteProgram(shaderShadowProgram);
         glDeleteProgram(shaderEquirectangularProgram);
@@ -322,9 +323,11 @@ void RenderSkybox()
     glBindVertexArray(mesh.VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
 
+    // Bind HDR texture
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, hdrTexture);
 
+    // Draw the skybox model
     glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
 
     // Unbind vertex array and set depth func back to default

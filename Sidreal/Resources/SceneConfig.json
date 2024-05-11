@@ -26,9 +26,13 @@
       "Path": "Resources\\CasOC\\CASCAS.obj",
       "Position": [ -2.0, 0.0, 0.0 ]
     },
+    "Cas2": {
+      "Path": "Resources\\CasOC\\CASCAS.obj",
+      "Position": [ -8.0, 0.0, 0.0 ]
+    },
     "Quad": {
       "Path": "Resources\\quad.obj",
-      "Position": [ -2.0, 4.0, 0.0 ],
+      "Position": [ -3.0, 4.0, 0.0 ],
       "Rotation": [ -90.0, 0.0, 180.0 ]
     }
   }

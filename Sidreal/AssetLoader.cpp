@@ -49,7 +49,6 @@ std::vector<ModelLoader::Model>& AssetLoader::LoadAllAssets()
 		if (!value.is_null())
 			model.uvTileFactor = value;
 
-		
 		loadedModels.push_back(model);
 	}
 

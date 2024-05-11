@@ -19,7 +19,7 @@ std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureTyp
 const char* currentModelPath = nullptr;
 unsigned int textureIndex = 0;
 std::vector<Texture::Texture> loadedTextures;
-std::unordered_map<const char*, Model> loadedModels;
+std::unordered_map<std::string, Model> loadedModels;
 
 Model ModelLoader::LoadModel(const char* path)
 {
@@ -28,6 +28,7 @@ Model ModelLoader::LoadModel(const char* path)
 
     if (loadedModels.find(path) != loadedModels.end())
     {
+        std::cout << "Model already loaded: " << path << std::endl;
 		return loadedModels[path];
 	}
 
@@ -40,7 +41,7 @@ Model ModelLoader::LoadModel(const char* path)
     if (scene == nullptr || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
         std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
-        std::cin.get();
+        return Model();
     }
 
     std::string stringPath = path;

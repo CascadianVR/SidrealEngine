@@ -9,13 +9,18 @@ in VS_OUT {
     vec2 texCoord;
     vec3 cameraForwardf;
     vec4 fragPosLightSpace;
+    mat4 lightSpaceMatrix;
 } fs_in;
 
 uniform sampler2D colorTexture;
 uniform sampler2D shadowMap;
 uniform vec3 lightPos;
+uniform mat4 lightViewProjection;
 
 vec3 ambientLight = vec3(0.6f);
+
+
+
 
 float ShadowCalculation(vec4 fPosLightSpace)
 {
@@ -24,6 +29,7 @@ float ShadowCalculation(vec4 fPosLightSpace)
     // transform to [0,1] range
     projCoords = projCoords * 0.5 + 0.5;
     // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
+
     float closestDepth = texture(shadowMap, projCoords.xy).r; 
     // get depth of current fragment from light's perspective
     float currentDepth = projCoords.z;
@@ -51,39 +57,6 @@ float ShadowCalculation(vec4 fPosLightSpace)
         shadow = 0.0;
         
     return 1.0f-shadow;
-}
-
-const float offset = 1.0 / 300.0;  
-vec3 BlurShadow()
-{
-    vec2 offsets[9] = vec2[](
-        vec2(-offset,  offset), // top-left
-        vec2( 0.0f,    offset), // top-center
-        vec2( offset,  offset), // top-right
-        vec2(-offset,  0.0f),   // center-left
-        vec2( 0.0f,    0.0f),   // center-center
-        vec2( offset,  0.0f),   // center-right
-        vec2(-offset, -offset), // bottom-left
-        vec2( 0.0f,   -offset), // bottom-center
-        vec2( offset, -offset)  // bottom-right    
-    );
-
-    float kernel[9] = float[](
-        (1.0f / 16.0f), (2.0f / 16.0f), (1.0f / 16.0f),  
-        (1.0f / 16.0f), (2.0f / 16.0f), (1.0f / 16.0f),
-        (2.0f / 16.0f), (4.0f / 16.0f), (2.0f / 16.0f)
-    );
-    
-    vec3 sampleTex[9];
-    for(int i = 0; i < 9; i++)
-    {
-        sampleTex[i] = vec3(texture(shadowMap, fs_in.texCoord.st + offsets[i]));
-    }
-    vec3 col = vec3(0.0);
-    for(int i = 0; i < 9; i++)
-        col += sampleTex[i] * kernel[i];
-
-    return col;
 }
 
 void main()
