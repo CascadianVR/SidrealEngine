@@ -1,0 +1,56 @@
+# Blender 4.2.0 MTL File: 'Aurellia10.blend'
+# www.blender.org
+
+newmtl Body
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Color_Body.png
+
+newmtl BusinessCasual
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd Color_BusinessCasual.png
+map_Ns Roughness_BusinessCasual.png
+map_refl Metal_BusinessCasual.png
+map_Bump -bm 1.000000 Normal_BusinessCasual.png
+
+newmtl BusinessCasual.001
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd Color_BusinessCasual.png
+map_Ns Roughness_BusinessCasual.png
+map_refl Metal_BusinessCasual.png
+map_Bump -bm 1.000000 Normal_BusinessCasual.png
+
+newmtl Eyes
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Color_Eyes.png
+
+newmtl Hair
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Color_Hair.png
