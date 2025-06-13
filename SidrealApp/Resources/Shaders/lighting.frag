@@ -17,6 +17,8 @@ layout (std140) uniform LightSpaceMatrices
     mat4 lightSpaceMatrices[16];
 };
 
+// Uniforms
+// TODO: Made uniform buffer objects for these
 uniform int cascadeCount; 
 uniform float nearPlane; 
 uniform float farPlane; 
@@ -26,7 +28,23 @@ uniform mat4 lightViewProjection;
 uniform sampler2D colorTexture;
 uniform sampler2DArray shadowMap;
 
-vec3 ambientLight = vec3(0.3f);
+float shadowStrength = 0.5f;
+vec3 ambientLight = vec3(0.5f);
+
+float CalculateBias(vec3 normal, vec3 lightDir)
+{
+    float normalDotLight = max(dot(normal, lightDir), 0.0);
+    
+    // Depth bias: small constant offset
+    float depthBias = 0.002;
+    float slopeBiasFactor = 0.004;
+
+    // Slope bias: proportional to angle between normal and light direction
+    float slopeBias = slopeBiasFactor * (1.0 - normalDotLight);
+
+    // Combined bias
+    return depthBias + slopeBias;
+}
 
 float ShadowCalculation(float NdotL)
 {
@@ -53,21 +71,16 @@ float ShadowCalculation(float NdotL)
     vec3 projCoords = fPosLightSpace.xyz / fPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
 
-    float closestDepth = texture(shadowMap, vec3(projCoords.xy, layer)).r; 
-    float currentDepth = projCoords.z;
-
-    vec3 normal = normalize(fs_in.normal);
-    //float bias = max(0.003 * (1.0 - NdotL), 0.003);
-    //float bias = clamp(0.0015 * tan(acos(NdotL)), 0.0005, 0.005);
-    float bias = max(0.005 * (1.0 - NdotL), 0.001);
-    //bias = clamp(bias, 0.0,0.01);
+    int kernelRadii[3] = int[](1, 2, 3); // Hard code 3 kernel radii for 3 cascades
+    int kernelRadius = kernelRadii[layer];
 
     int samples = 0;
     float shadow = 0.0;
-    //vec2 texelSize = 1.0f / vec2(textureSize(shadowMap, layer));
+    float currentDepth = projCoords.z;
+    //float bias = max(0.005 * (1.0 - NdotL), 0.001);
+    float bias = CalculateBias(fs_in.normal, lightDirection);
     vec2 texelSize = 1.0f / vec2(textureSize(shadowMap, 0));
-    int kernelRadius = 3; // 5x5 kernel
-    //return texture(shadowMap, vec3(projCoords.xy, layer)).r;
+
     for(int x = -kernelRadius; x <= kernelRadius; ++x)
     {
         for(int y = -kernelRadius; y <= kernelRadius; ++y)
@@ -75,8 +88,7 @@ float ShadowCalculation(float NdotL)
             vec2 offset = projCoords.xy + vec2(x, y) * texelSize;
 
             // Only sample if inside shadow map bounds
-            if (offset.x >= 0.0 && offset.x <= 1.0 &&
-                offset.y >= 0.0 && offset.y <= 1.0)
+            if (offset.x >= 0.0 && offset.x <= 1.0 && offset.y >= 0.0 && offset.y <= 1.0)
             {
                 float pcfDepth = texture(shadowMap, vec3(offset, layer)).r;
                 shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
@@ -94,7 +106,7 @@ float ShadowCalculation(float NdotL)
     if (projCoords.z > 1.0)
         shadow = 0.0;
 
-    return 1.0f-shadow;
+    return shadow;
 }
 
 vec3 GetShadowColor()
@@ -132,9 +144,12 @@ vec3 GetShadowColor()
 
 void main()
 {
-
+    // Save commonly used calculations
     vec4 viewPosition = normalize(mat4(fs_in.viewMatrix) * fs_in.worldPosition);
     vec3 viewNormal = normalize(mat3(fs_in.viewMatrix) * fs_in.normal);
+    float NdotL = max(dot(viewNormal, lightDirection), 0.0f);
+    vec3 viewDir = normalize(-viewPosition.xyz);
+    vec3 halfwayDir = normalize(lightDirection + viewDir);
     
     vec4 textureColor = texture(colorTexture, fs_in.texCoord);
 
@@ -143,30 +158,28 @@ void main()
     //shading  = shading / 0.1f + 0.5f; // Sharpen shadow
     //shading = clamp(shading, ambientLight.x, 1.0f);
 
-    // Rim lighting
+    // ---- Rim lighting ----
     float rimlight = max(dot(-fs_in.cameraForwardf, fs_in.normal), 0.0f) * 1 + 0.5f;
     rimlight = clamp(rimlight, 0.8f, 1.0f);
     rimlight = 1.0f - rimlight;
-    //shading *= rimlight;
 
-    // Specular
-    vec3 viewDir = normalize(-viewPosition.xyz);
-    vec3 halfwayDir = normalize(lightDirection + viewDir);
+    // ---- Specular ----
     float spec = pow(max(dot(viewNormal, halfwayDir), 0.0f), 5.0f);
 
+    // ---- Shadow ----
+    vec3 shadow = ShadowCalculation(NdotL).xxx;   
+    //if (shadow.x < 0.9f) shadow = GetShadowColor();
+    shadow = mix(0.0, shadow.x, shadowStrength).xxx;
+    shadow = vec3(1.0f) - shadow;
+    shadow = clamp(shadow, 0.0f, 1.0f);
+    // Visualize cascades
+
+    // Add color and lighting
     vec3 color = textureColor.xyz;
-    color += rimlight * 0.1f;
-    color += spec * 0.1f;
+    color += rimlight * 0.3f;
+    color += spec * 0.2f;
 
-    float NdotL = max(dot(viewNormal, lightDirection), 0.0f);
-    float castShadows = ShadowCalculation(NdotL);   
-    castShadows = clamp(pow(castShadows, 3.0), 0.0f, 1.0f);
-
-    // Apply color to shadow based on cascade
-    vec3 shadowColor = GetShadowColor();
-    if (castShadows > 0.9f) shadowColor = vec3(1.0f, 1.0f, 1.0f);
-
-    color = color * (max(shadowColor, ambientLight * shadowColor));
+    color = color * (max(shadow.xxx, ambientLight));
 
     FragColor = vec4(color, 1.0f);
 } 

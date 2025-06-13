@@ -124,5 +124,5 @@ void Texture::SetActiveBindlessTexture(unsigned int shaderProgram, unsigned int*
 {
     glUseProgram(shaderProgram);
     glBindTextureUnit(GL_TEXTURE0, *texture);
-    Shader::SetInt1i(&shaderProgram, "tex", 0);
+    Shader::SetUniform1i(&shaderProgram, "tex", 0);
 }

@@ -14,15 +14,17 @@
 #include "../Texture.h"
 #include "../Engine.h"
 #include "../Entity/Components/Transform.h"
+#include <filesystem>
 
-const unsigned int ShadowMapSize = 2048 * 2;
+const unsigned int ShadowMapSize = 2048;
 
-void RenderSkybox();
-void InitializeShadowPass();
-void UpdateLightProjectionViews();
+static void RenderSkybox();
+static void InitializeShadowPass();
+static void InitializeLightingPass();
+static void UpdateLightProjectionViews();
 static void RenderShadowPass(Model& model, EntityTransform::Transform& transform);
 static void RenderLightingPass(Model& model, EntityTransform::Transform& transform);
-glm::mat4 CalculateLightSpaceMatrix(float nearPlane, float farPlane);
+static glm::mat4 CalculateLightSpaceMatrix(float nearPlane, float farPlane);
 
 unsigned int shaderLightingProgram;
 unsigned int shaderLightingInstancedProgram;
@@ -56,39 +58,10 @@ void Renderer::Initialize()
     
 	Scene::SceneData& sceneData = *Scene::GetActiveScene();
 
-    std::cout << "Total models loaded: " << sceneData.models.size() << std::endl;
-    
-    // Calculate the rough number of draw calls.
-    int drawCalls = 0;
-    for (int i = 0; i < sceneData.models.size(); i++)
-    {
-        Model* model = sceneData.models[i];
-        for(int j = 0; j < model->meshes.size(); j++)
-        {
-            drawCalls++;
-        }
-    }
-    drawCalls *= 2; // Shadow pass 
-    drawCalls += 1; // Skybox
-    std::cout << "Draw Calls: " << drawCalls << std::endl;
-    
     // Initialize shadow pass for rendering
     InitializeShadowPass();
 
-    glUseProgram(shaderLightingProgram);
-
-    Camera::UpdateCamera(&shaderLightingProgram);
-    Shader::SetMatrix4f(&shaderLightingProgram, "lightSpaceMatrix", shadowLightSpaceMatricies[0]);
-    Shader::SetUniform3f(&shaderLightingProgram, "cameraForward", MathUtils::Vec3toFloat3(Camera::GetCameraForward()));
-    Shader::SetUniform3f(&shaderLightingProgram, "lightDirection", MathUtils::Vec3toFloat3(lightDirection));
-    Shader::SetUniform1f(&shaderLightingProgram, "nearPlane", Camera::GetNearPlane());
-    Shader::SetUniform1f(&shaderLightingProgram, "farPlane", Camera::GetFarPlane());
-    Shader::SetInt1i(&shaderLightingProgram, "cascadeCount", shadowCascadeLevels.size()+1);
-    for (size_t i = 0; i < shadowCascadeLevels.size(); ++i)
-    {
-        std::string uniformName = "cascadePlaneDistances[" + std::to_string(i) + "]";
-        Shader::SetUniform1f(&shaderLightingProgram, uniformName.c_str(), shadowCascadeLevels[i]);
-    }
+	InitializeLightingPass();
     
     // Enable OpenGL features we want to use
     glEnable(GL_DEPTH_TEST);
@@ -136,7 +109,6 @@ void Renderer::SetupLightingPass()
     glUseProgram(shaderLightingProgram);
 
     Camera::UpdateCamera(&shaderLightingProgram);
-    Shader::SetMatrix4f(&shaderLightingProgram, "lightSpaceMatrix", shadowLightSpaceMatricies[0]);
     Shader::SetUniform3f(&shaderLightingProgram, "cameraForward", MathUtils::Vec3toFloat3(Camera::GetCameraForward()));
     Shader::SetUniform3f(&shaderLightingProgram, "lightDirection", MathUtils::Vec3toFloat3(lightDirection));
 
@@ -172,21 +144,25 @@ void Renderer::LoadShaders(bool reload)
 
         std::cout << "Hot Reloading Shaders...\n";
     }
-
-    glFlush();
+    else
+    {
+        auto shaderPath = (std::filesystem::current_path() / "Resources" / "Shaders").string();
+        std::cout << "Loading Shaders from: " << shaderPath << "...\n";
+	}
 
     shaderLightingProgram = Shader::CreateShaderProgram("Resources\\Shaders\\lighting.vert", "Resources\\Shaders\\lighting.frag");
     glUseProgram(shaderLightingProgram);
-    Shader::SetInt1i(&shaderLightingProgram, "tex", 0);
-    Shader::SetInt1i(&shaderLightingProgram, "shadowMap", 1);
+    Shader::SetUniform1i(&shaderLightingProgram, "colorTexture", 0);
+    Shader::SetUniform1i(&shaderLightingProgram, "shadowMap", 1);
+    Shader::SetUniform1i(&shaderLightingProgram, "cascadeCount", shadowCascadeLevels.size() + 1);
+    Shader::SetUniform1fv(&shaderLightingProgram, "cascadePlaneDistances", shadowCascadeLevels.data(), static_cast<int>(shadowCascadeLevels.size()));
 
     shaderShadowProgram = Shader::CreateShaderProgram("Resources\\Shaders\\shadow.vert", "Resources\\Shaders\\shadow.frag", "Resources\\Shaders\\shadow.geom");
     glUseProgram(shaderShadowProgram);
-    Shader::SetMatrix4f(&shaderShadowProgram, "lightSpaceMatrix", 0);
 
     shaderEquirectangularProgram = Shader::CreateShaderProgram("Resources\\Shaders\\equirectangular.vert", "Resources\\Shaders\\equirectangular.frag");
     glUseProgram(shaderEquirectangularProgram);
-    Shader::SetInt1i(&shaderEquirectangularProgram, "equirectangularMap", 0);
+    Shader::SetUniform1i(&shaderEquirectangularProgram, "equirectangularMap", 0);
 
     shaderDebugProgram = Shader::CreateShaderProgram("Resources\\Shaders\\debug.vert", "Resources\\Shaders\\debug.frag");
 }
@@ -201,18 +177,25 @@ float* Renderer::GetLightDirection()
     return MathUtils::Vec3toFloat3(lightDirection);
 }
 
-void InitializeShadowPass()
-{
-	const float near = Camera::GetNearPlane();
-	const float far = Camera::GetFarPlane();
 
-    //              ---- Shadow Cascade Range ----
-	/// | nearplane | 1st cascade | 2nd cascade | farplane |
-    shadowCascadeLevels = {
-        near + (far - near) * 0.15f,  // end of 1st cascade (~10% of view distance)
-        near + (far - near) * 0.25f   // end of 2nd cascade (~50% of view distance)
-    };
-    shadowLightSpaceMatricies = std::vector<glm::mat4>(shadowCascadeLevels.size() + 1);
+static void InitializeShadowPass()
+{
+	const unsigned int cascadeCount = 3;
+	const float far = Camera::GetFarPlane();
+	const float near = Camera::GetNearPlane();
+	const float lambda = 0.8f;
+
+    //            ---- Shadow Cascade Range ----
+	//   nearplane | 1st cascade | 2nd cascade | farplane
+	shadowCascadeLevels = std::vector<float>(cascadeCount - 1);
+    for (int i = 1; i < cascadeCount; ++i)
+    {
+        float p = i / static_cast<float>(3);
+        float logSplit = near * std::pow(far / near, p);
+        float uniformSplit = near + (far - near) * p;
+        shadowCascadeLevels[i - 1] = lambda * logSplit + (1.0f - lambda) * uniformSplit;
+    }
+    shadowLightSpaceMatricies = std::vector<glm::mat4>(cascadeCount);
 
     glGenFramebuffers(1, &depthMapFBO);
 
@@ -222,8 +205,8 @@ void InitializeShadowPass()
     glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT32F, ShadowMapSize, ShadowMapSize,
         int(shadowCascadeLevels.size() + 1), 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
@@ -249,25 +232,37 @@ void InitializeShadowPass()
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
-void renderQuad(int i);
+static void InitializeLightingPass()
+{
+    glUseProgram(shaderLightingProgram);
+    Camera::UpdateCamera(&shaderLightingProgram);
+    Shader::SetUniform3f(&shaderLightingProgram, "cameraForward", MathUtils::Vec3toFloat3(Camera::GetCameraForward()));
+    Shader::SetUniform3f(&shaderLightingProgram, "lightDirection", MathUtils::Vec3toFloat3(lightDirection));
+    Shader::SetUniform1i(&shaderLightingProgram, "cascadeCount", shadowCascadeLevels.size() + 1);
+    for (size_t i = 0; i < shadowCascadeLevels.size(); ++i)
+    {
+        std::string uniformName = "cascadePlaneDistances[" + std::to_string(i) + "]";
+        Shader::SetUniform1f(&shaderLightingProgram, uniformName.c_str(), shadowCascadeLevels[i]);
+    }
+}
+
+static void renderQuad(int i);
 void Renderer::ShowDepthMapDebug()
 {
     // Shader program to use for lighting pass
     glUseProgram(shaderDebugProgram);
-    Shader::SetInt1i(&shaderDebugProgram, "depthMap", 0);
-    Shader::SetUniform1f(&shaderDebugProgram, "near_plane", Camera::GetNearPlane());
-    Shader::SetUniform1f(&shaderDebugProgram, "far_plane", Camera::GetFarPlane());
+    Shader::SetUniform1i(&shaderDebugProgram, "depthMap", 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, depthMaps);
     for (int i = 0; i < shadowCascadeLevels.size() + 1; i++)
     {
-        Shader::SetInt1i(&shaderDebugProgram, "layer", i);
+        Shader::SetUniform1i(&shaderDebugProgram, "layer", i);
         renderQuad(i);
 	}
 }
 
 
-void RenderSkybox()
+static void RenderSkybox()
 {
     // Only render the inside
     glCullFace(GL_FRONT);
@@ -310,7 +305,6 @@ static void RenderShadowPass(Model& model, EntityTransform::Transform& transform
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
 
         Shader::SetMatrix4f(&shaderShadowProgram, "model", EntityTransform::GetModelMatrix(transform));
-        Shader::SetInt1i(&shaderShadowProgram, "cascadeIndex", 0);
 
         // Draw mesh
         glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
@@ -342,7 +336,7 @@ static void RenderLightingPass(Model& model, EntityTransform::Transform& transfo
     }
 }
 
-void UpdateLightProjectionViews()
+static void UpdateLightProjectionViews()
 {
     for (size_t i = 0; i < shadowCascadeLevels.size() + 1; ++i)
     {
@@ -359,13 +353,9 @@ void UpdateLightProjectionViews()
             shadowLightSpaceMatricies[i] = CalculateLightSpaceMatrix(shadowCascadeLevels[i - 1], Camera::GetFarPlane());
         }
     }
-    //for (int i = 0; i < shadowCascadeLevels.size() + 1; i++) 
-    //{
-    //    shadowLightSpaceMatricies[i] = CalculateLightSpaceMatrix(lightDirection, i);
-    //}
 }
 
-glm::mat4 CalculateLightSpaceMatrix(float nearPlane, float farPlane) 
+static glm::mat4 CalculateLightSpaceMatrix(float nearPlane, float farPlane)
 {
     //float nearPlane = (index == 0) ? Camera::GetNearPlane() : shadowCascadeLevels[index - 1];
     //float farPlane = (index < shadowCascadeLevels.size()) ? shadowCascadeLevels[index] : Camera::GetFarPlane();
@@ -474,71 +464,76 @@ glm::mat4 CalculateLightSpaceMatrix(float nearPlane, float farPlane)
 
 unsigned int quadVAO = 0;
 unsigned int quadVBO;
-void renderQuad(int i)
+static void renderQuad(int i)
 {
-    //if (quadVAO == 0)
+    if (quadVAO == 0)
     {
-        float quadVertices[] = {
-            // positions          // texture Coords
-            -1.0f, -1.0f, 0.0f,   1.0f, 1.0f, // bottom left
-            -1.0f,  0.0f, 0.0f,   1.0f, 0.0f, // top left
-             0.0f, -1.0f, 0.0f,   0.0f, 1.0f, // bottom right
-             0.0f,  0.0f, 0.0f,   0.0f, 0.0f, // top right
-        };
-
-		// Scale quad vertices to fit the screen aspect ratio and push it to the bottom left corner
-		int height = Engine::GetCurentScreenHeight();
-		int width = Engine::GetCurentScreenWidth();
-		float aspect = float(width) / float(height);
-        if (aspect > 1.0f)
-        {
-            // Scale X and shift so left edge stays at -1
-            float xScale = 1.0f / aspect;
-            for (int i = 0; i < 4; ++i)
-            {
-                float& x = quadVertices[i * 5 + 0];
-                x = -1.0f + (x + 1.0f) * xScale; // move from [-1,0] ¨ scaled range starting at -1
-            }
-        }
-        else
-        {
-            // Scale Y and shift so bottom edge stays at -1
-            float yScale = aspect;
-            for (int i = 0; i < 4; ++i)
-            {
-                float& y = quadVertices[i * 5 + 1];
-                y = -1.0f + (y + 1.0f) * yScale; // move from [-1,0] ¨ scaled range starting at -1
-            }
-        }
-
-        // Push to side depending on i
-        for (int j = 0; j < 4; j++)
-        {
-			quadVertices[0 + j * 5] += i * 0.5f;
-		}
-
-        float scale = 0.5f; // scale down to 50%
-
-        for (int i = 0; i < 4; ++i)
-        {
-            float& x = quadVertices[i * 5 + 0];
-            float& y = quadVertices[i * 5 + 1];
-
-            x = (x + 1.0f) * scale - 1.0f;
-            y = (y + 1.0f) * scale - 1.0f;
-        }
-
         // setup plane VAO
         glGenVertexArrays(1, &quadVAO);
         glGenBuffers(1, &quadVBO);
         glBindVertexArray(quadVAO);
         glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 4.0f * 5.0f, nullptr, GL_DYNAMIC_DRAW);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     }
+
+    float quadVertices[] = {
+        // positions          // texture Coords
+        -1.0f, -1.0f, 0.0f,   1.0f, 1.0f, // bottom left
+        -1.0f,  0.0f, 0.0f,   1.0f, 0.0f, // top left
+         0.0f, -1.0f, 0.0f,   0.0f, 1.0f, // bottom right
+         0.0f,  0.0f, 0.0f,   0.0f, 0.0f, // top right
+    };
+
+    // Scale quad vertices to fit the screen aspect ratio and push it to the bottom left corner
+    int height = Engine::GetCurentScreenHeight();
+    int width = Engine::GetCurentScreenWidth();
+    float aspect = float(width) / float(height);
+    if (aspect > 1.0f)
+    {
+        // Scale X and shift so left edge stays at -1
+        float xScale = 1.0f / aspect;
+        for (int i = 0; i < 4; ++i)
+        {
+            float& x = quadVertices[i * 5 + 0];
+            x = -1.0f + (x + 1.0f) * xScale; // move from [-1,0] ¨ scaled range starting at -1
+        }
+    }
+    else
+    {
+        // Scale Y and shift so bottom edge stays at -1
+        float yScale = aspect;
+        for (int i = 0; i < 4; ++i)
+        {
+            float& y = quadVertices[i * 5 + 1];
+            y = -1.0f + (y + 1.0f) * yScale; // move from [-1,0] ¨ scaled range starting at -1
+        }
+    }
+
+    // Push to side depending on i
+    for (int j = 0; j < 4; j++)
+    {
+        quadVertices[0 + j * 5] += i * 0.5f;
+    }
+
+    float scale = 0.5f; // scale down to 50%
+
+    for (int i = 0; i < 4; ++i)
+    {
+        float& x = quadVertices[i * 5 + 0];
+        float& y = quadVertices[i * 5 + 1];
+
+        x = (x + 1.0f) * scale - 1.0f;
+        y = (y + 1.0f) * scale - 1.0f;
+    }
+
+    // Update buffer data
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(quadVertices), quadVertices);
+
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);

@@ -1,5 +1,6 @@
 #pragma once
 #include "Scene.h"
+#include "Entity/EntityManager.h"
 
 namespace Engine 
 {
@@ -10,4 +11,5 @@ namespace Engine
 	int GetCurentScreenWidth();
 	int GetCurentScreenHeight();
 	float GetDeltaTime();
+	EntityManager* GetEntityManager();
 }

@@ -33,6 +33,8 @@ float averageTime[60];
 int frameNumber = 0;
 float average = 0.0f;
 
+EntityManager* _entityManager = nullptr;
+
 ImGuiIO io;
 
 void Engine::Run(const char* startScenePath)
@@ -40,7 +42,9 @@ void Engine::Run(const char* startScenePath)
 	InitializeGlfw();
 
 	EntityManager entityManager;
-	Scene::SceneData* scene = AssetManager::LoadSceneFromJSON(startScenePath, &entityManager);
+	_entityManager = &entityManager;
+
+	Scene::SceneData* scene = AssetManager::LoadSceneFromJSON(startScenePath, _entityManager);
 	Scene::SetActiveScene(scene);
 
 	ShowWindow();
@@ -172,6 +176,11 @@ float Engine::GetDeltaTime()
 	return deltaTime;
 }
 
+EntityManager* Engine::GetEntityManager()
+{
+	return _entityManager;
+}
+
 void InitializeGlfw()
 {
 	// Initialize GLFW with OpenGL Version 4.6 and core profile (less backwards compatability)
@@ -193,7 +202,7 @@ void InitializeGlfw()
 	glfwMakeContextCurrent(window);
 
 	// Set vsync (0 is off, 1 is on)
-	glfwSwapInterval(1);
+	glfwSwapInterval(0);
 
 	// Initialize GLAD before calling any OpenGL funtions since it manages function pointers for OpenGL
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))

@@ -5,7 +5,7 @@
 #include <glm/ext/matrix_clip_space.hpp>
 
 float nearPlane = 0.1f;
-float farPlane = 50.0f;
+float farPlane = 100.0f;
 float fov = 45.0f;
 
 glm::vec3 cameraPosition;

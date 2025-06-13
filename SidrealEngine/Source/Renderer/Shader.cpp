@@ -7,7 +7,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <unordered_map>
 
-char* LoadShader(const char* path);
+static char* LoadShader(const char* path);
+static int GetUniformLocation(unsigned int* shaderProgram, const char* uniformName);
 
 std::unordered_map<const char*, int> uniformLocations;
 
@@ -89,51 +90,43 @@ unsigned int Shader::CreateShaderProgram(const char* vertexShaderPath, const cha
     return shaderProgram;
 }
 
-int GetUniformLocation(unsigned int* shaderProgram, const char* uniformName)
-{
-    const char* lookupName = uniformName + *shaderProgram;
-
-    if (uniformLocations.find(lookupName) != uniformLocations.end())
-    {
-        return uniformLocations[lookupName];
-    }
-
-    int location = glGetUniformLocation(*shaderProgram, uniformName);
-    uniformLocations[lookupName] = location;
-    return location;
-}
-
-void Shader::SetInt1i(unsigned int* shaderProgram, const char* uniformName, int value)
+void Shader::SetUniform1i(unsigned int* shaderProgram, const char* uniformName, const int value)
 {
     int location = GetUniformLocation(shaderProgram, uniformName);
     glUniform1i(location, value);
 }
 
-void Shader::SetUniform1f(unsigned int* shaderProgram, const char* uniformName, float value)
+void Shader::SetUniform1f(unsigned int* shaderProgram, const char* uniformName, const float value)
 {
     int location = GetUniformLocation(shaderProgram, uniformName);
     glUniform1f(location, value);
 }
 
-void Shader::SetUniform3f(unsigned int* shaderProgram, const char* uniformName, float vec3[3])
+void Shader::SetUniform1fv(unsigned int* shaderProgram, const char* uniformName, const float* values, int count)
+{
+    int location = GetUniformLocation(shaderProgram, uniformName);
+    glUniform1fv(location, count, values);
+}
+
+void Shader::SetUniform3f(unsigned int* shaderProgram, const char* uniformName, const float vec3[3])
 {
     int location = GetUniformLocation(shaderProgram, uniformName);
     glUniform3f(location, vec3[0], vec3[1], vec3[2]);
 }
 
-void Shader::SetUniform4f(unsigned int* shaderProgram, const char* uniformName, float vec4[4])
+void Shader::SetUniform4f(unsigned int* shaderProgram, const char* uniformName, const float vec4[4])
 {
     int location = GetUniformLocation(shaderProgram, uniformName);
     glUniform4f(location, vec4[0], vec4[1], vec4[2], vec4[4]);
 }
 
-void Shader::SetMatrix4f(unsigned int* shaderProgram, const char* uniformName, glm::mat4 value)
+void Shader::SetMatrix4f(unsigned int* shaderProgram, const char* uniformName, const glm::mat4 value)
 {
     int location = GetUniformLocation(shaderProgram, uniformName);
     glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
 }
 
-char* LoadShader(const char* path) {
+static char* LoadShader(const char* path) {
     std::ifstream inputFile(path);
 
     // Check if the file is opened successfully
@@ -154,4 +147,25 @@ char* LoadShader(const char* path) {
     strcpy_s(shaderContent, content.length() + 1, content.c_str());
 
     return shaderContent;
+}
+
+static int GetUniformLocation(unsigned int* shaderProgram, const char* uniformName)
+{
+    const char* lookupName = uniformName + *shaderProgram;
+
+    if (uniformLocations.find(lookupName) != uniformLocations.end())
+    {
+        return uniformLocations[lookupName];
+    }
+
+    int location = glGetUniformLocation(*shaderProgram, uniformName);
+
+    if (location == -1)
+    {
+        std::cerr << "Warning: Uniform '" << uniformName << "' not found in shader program '" << shaderProgram << "'\n";
+        return -1;
+    }
+
+    uniformLocations[lookupName] = location;
+    return location;
 }

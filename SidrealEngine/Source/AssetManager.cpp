@@ -70,7 +70,7 @@ Scene::SceneData* AssetManager::LoadSceneFromJSON(const char* jsonPath, EntityMa
 			model.uvTileFactor = value;
 	}
 
-	std::cout << "All models loaded." << std::endl;
+	std::cout << "All models loaded!\n\n";
 
 	return scene;
 }
