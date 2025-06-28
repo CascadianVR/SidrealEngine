@@ -5,6 +5,7 @@
 namespace Shader
 {
     unsigned int CreateShaderProgram(const char* vertexShaderPath, const char* fragmentShaderPath, const char* geometryShaderPath = nullptr);
+    void ClearUniformCache();
     void SetUniform1i(unsigned int* shaderProgram, const char* uniformName, const int value);
     void SetUniform1f(unsigned int* shaderProgram, const char* uniformName, const float value);
     void SetUniform1fv(unsigned int* shaderProgram, const char* uniformName, const float* values, int count);

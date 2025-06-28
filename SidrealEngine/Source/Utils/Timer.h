@@ -9,6 +9,7 @@
 class TimerRegistry {
 public:
     static void AddTime(const std::string& name, double ms);
+    static void ClearTime(const std::string& name);
     static std::unordered_map<std::string, double> GetTimings();
     static void Reset();
 

@@ -14,6 +14,7 @@ using namespace nlohmann;
 unsigned int ARRAY_BUFFER = 34962;
 unsigned int ELEMENT_ARRAY_BUFFER = 34963;
 
+const char* ReadBufferData(int accessorIndex, json& jsonAccessors, json& jsonBufferViews, std::vector<std::vector<char>>& buffers);
 
 enum class ComponentType : uint32_t
 {
@@ -41,10 +42,7 @@ struct BufferView
 	uint32_t Target;
 };
 
-Texture::Texture LoadDefaultTexture();
-Mesh CreateMesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices);
-
-Model GLTFLoader::LoadBinary(const char* path)
+void GLTFLoader::LoadBinary(const char* path, Model& model)
 {
 	// Open file
 	std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -90,8 +88,8 @@ Model GLTFLoader::LoadBinary(const char* path)
 	}
 
 	// print version and length
-	std::cout << "Version: " << version << std::endl;
-	std::cout << "Length: " << length << std::endl << std::endl;
+	//std::cout << "Version: " << version << std::endl;
+	//std::cout << "Length: " << length << std::endl << std::endl;
 
 	// Check if file size matches length in header
 	if (size < length)
@@ -103,16 +101,13 @@ Model GLTFLoader::LoadBinary(const char* path)
 	uint32_t jsonChunkLength = *reinterpret_cast<uint32_t*>(&buffer[12]);
 
 	// Check if json chunk is long enough (20 bytes is header + json chunk length)
-	if (size < jsonChunkLength + 20)
+	if (size < static_cast<long long>(jsonChunkLength) + 20)
 	{
 		throw std::runtime_error("Invalid .glb file");
 	}
 
 	// Get json chunk
 	std::string jsonChunk(buffer.begin() + 20, buffer.begin() + 20 + jsonChunkLength);
-
-	// Print json chunk
-	std::cout << "JSON chunk: " << jsonChunk << std::endl;
 
 	// Parse json chunk
 	json jsonData = nlohmann::json::parse(jsonChunk);
@@ -139,7 +134,6 @@ Model GLTFLoader::LoadBinary(const char* path)
 	}
 
 	std::vector<Accessor> accessors;
-	std::cout << "Accessors size: " << jsonAccessors.size() << std::endl;
 	for(int i = 0; i < jsonAccessors.size(); i++)
 	{
 		json accessor = jsonAccessors[i];
@@ -167,18 +161,26 @@ Model GLTFLoader::LoadBinary(const char* path)
 	}
 
 	std::vector<BufferView> bufferViews;
-	std::cout << "BufferViews size: " << jsonBufferViews.size() << std::endl;
-	std::cout << "Buffers size: " << jsonData["buffers"].size() << std::endl;
+	//std::cout << "BufferViews size: " << jsonBufferViews.size() << std::endl;
+	//std::cout << "Buffers size: " << jsonData["buffers"].size() << std::endl;
 
 	for (int i = 0; i < accessors.size(); i++)
 	{
 		json bufferView = jsonBufferViews[accessors[i].BufferView];
 
-		BufferView view;
+		BufferView view{};
 		view.Buffer = bufferView["buffer"];
 		view.ByteLength = bufferView["byteLength"];
 		view.ByteOffset = bufferView["byteOffset"];
-		view.Target = bufferView["target"];
+		// Check for optional "target"
+		if (bufferView.contains("target"))
+		{
+			view.Target = bufferView["target"];
+		}
+		else
+		{
+			view.Target = -1; // Or 0, or some sentinel value to mean "unspecified"
+		}
 		bufferViews.push_back(view);
 	}
 
@@ -209,135 +211,100 @@ Model GLTFLoader::LoadBinary(const char* path)
 		buffers.push_back(bufferData);
 	}
 
-	for (int i = 0; i < accessors.size(); i++)
-	{
-		std::cout << "BufferView: " << accessors[i].BufferView << std::endl;
-		std::cout << "ComponentType: " << accessors[i].CompType << std::endl;
-		std::cout << "Count: " << accessors[i].Count << std::endl;
-		std::cout << "Type: " << accessors[i].Type << std::endl;
-	}
-
-	// Get number of meshes and "primatives" (primative is the sub-mesh that is contained in a simgle material)
-	json jsonMeshes = jsonData["meshes"];
 	std::vector<Mesh> meshes;
-	unsigned int totalMeshCount = 0;
-	for(int i = 0; i < jsonMeshes.size(); i++)
+	json jsonMeshes = jsonData["meshes"];
+	json jsonMaterials = jsonData["materials"];
+	json jsonTextures = jsonData["textures"];
+	json jsonImages = jsonData["images"];
+
+	for (int meshIndex = 0; meshIndex < jsonMeshes.size(); ++meshIndex)
 	{
-		json jsonMesh = jsonMeshes[i];
-		json jsonPrimitives = jsonMesh["primitives"];
-		totalMeshCount += jsonPrimitives.size();
+		json meshJson = jsonMeshes[meshIndex];
+		json primitives = meshJson["primitives"];
+
+		for (int primIndex = 0; primIndex < primitives.size(); ++primIndex)
+		{
+			json primitive = primitives[primIndex];
+			json attributes = primitive["attributes"];
+
+			std::vector<Vertex> vertices;
+			std::vector<unsigned int> indices;
+
+			// Check if required attributes are present
+			int positionAccessorIndex = attributes.value("POSITION", -1);
+			if (positionAccessorIndex < 0) {
+				std::cerr << "Missing POSITION attribute" << std::endl;
+				continue;
+			}
+			int count = jsonAccessors[positionAccessorIndex].value("count", 0);
+
+			const char* positionData = ReadBufferData(attributes["POSITION"], jsonAccessors, jsonBufferViews, buffers);
+			const char* normalData = ReadBufferData(attributes["NORMAL"], jsonAccessors, jsonBufferViews, buffers);
+			const char* texCoordData = ReadBufferData(attributes["TEXCOORD_0"], jsonAccessors, jsonBufferViews, buffers);
+
+			for (int i = 0; i < count; ++i)
+			{
+				Vertex v{};
+
+				// Each vertex entry is tightly packed (assumes float format, 3*4 bytes per vec3, 2*4 bytes per vec2)
+				v.Position = *reinterpret_cast<const glm::vec3*>(positionData + i * sizeof(glm::vec3));
+				v.Normal = *reinterpret_cast<const glm::vec3*>(normalData + i * sizeof(glm::vec3));
+				v.TexCoords = *reinterpret_cast<const glm::vec2*>(texCoordData + i * sizeof(glm::vec2));
+
+				vertices.push_back(v);
+			}
+
+			// Read indices
+			int indicesAccessorIndex = primitive["indices"];
+			json indexAccessor = jsonAccessors[indicesAccessorIndex];
+			const char* indexData = ReadBufferData(indicesAccessorIndex, jsonAccessors, jsonBufferViews, buffers);
+
+			int indexCount = indexAccessor["count"];
+			int componentType = indexAccessor["componentType"]; // 5123 = ushort, 5125 = uint
+
+			if (componentType == 5123) // UNSIGNED_SHORT
+			{
+				for (int i = 0; i < indexCount; ++i)
+				{
+					uint16_t index = *reinterpret_cast<const uint16_t*>(indexData + i * sizeof(uint16_t));
+					indices.push_back(static_cast<unsigned int>(index));
+				}
+			}
+			else if (componentType == 5125) // UNSIGNED_INT
+			{
+				for (int i = 0; i < indexCount; ++i)
+				{
+					uint32_t index = *reinterpret_cast<const uint32_t*>(indexData + i * sizeof(uint32_t));
+					indices.push_back(index);
+				}
+			}
+			else
+			{
+				std::cerr << "Unsupported index component type: " << componentType << std::endl;
+			}
+
+			// Final mesh push
+			Mesh mesh;
+			mesh.vertices = vertices;
+			mesh.indices = indices;
+			meshes.push_back(mesh);
+		}
 	}
 
-	// Load each mesh by finding the vertex data and index data from the buffer data using the offsets
-	for (int i = 0; i < totalMeshCount; i++)
-	{
-		std::vector<Vertex> vertices;
-		std::vector<unsigned int> indices;
-
-		/* ---------- GET VERTICES ---------- */
-		// Get vertex position byte offset
-		BufferView view = bufferViews[0 + i * 4];
-		std::vector<char> bufferData = buffers[view.Buffer];
-		uint32_t positionByteOffset = view.ByteOffset;
-
-		// Get vertex normal byte offset
-		view = bufferViews[1 + i * 4];
-		uint32_t normalByteOffset = view.ByteOffset;
-
-		// Get vertex texCoords byte offset
-		view = bufferViews[2 + i * 4];
-		uint32_t texCoordsByteOffset = view.ByteOffset;
-
-		for (int j = 0; j < accessors[0 + i * 4].Count; j++)
-		{
-			Vertex vertex;
-
-			// Get position
-			vertex.Position = *reinterpret_cast<glm::vec3*>(&bufferData[positionByteOffset]);
-			positionByteOffset += 12;
-
-			// Get normal
-			vertex.Normal = *reinterpret_cast<glm::vec3*>(&bufferData[normalByteOffset]);
-			normalByteOffset += 12;
-
-			// Get texCoords
-			vertex.TexCoords = *reinterpret_cast<glm::vec2*>(&bufferData[texCoordsByteOffset]);
-			texCoordsByteOffset += 8;
-
-			vertices.push_back(vertex);
-		}
-
-		/* ---------- GET INDICES ---------- */
-		// Get indices bufferView
-		view = bufferViews[3 + i * 4];
-		uint32_t byteOffset = view.ByteOffset;
-
-		std::cout << "Index Byte offset: " << byteOffset << std::endl;
-
-		for (int j = 0; j < accessors[3 + i * 4].Count; j++)
-		{
-			unsigned int index = *reinterpret_cast<unsigned short*>(&bufferData[byteOffset]);
-			byteOffset += 2;
-			indices.push_back(index);
-		}
-
-		Mesh mesh = CreateMesh(vertices, indices);
-		meshes.push_back(mesh);
-	}
-
-	Model model;
 	model.meshes = meshes;
-
-	return model;
 }
 
-Mesh CreateMesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices)
+const char* ReadBufferData(int accessorIndex, json& jsonAccessors, json& jsonBufferViews, std::vector<std::vector<char>>& buffers)
 {
-	// Create VBOs and IBOs
-	std::vector<unsigned int> VAOs(1);
-	std::vector<unsigned int> VBOs(1);
-	std::vector<unsigned int> EBOs(1);
+	json accessor = jsonAccessors[accessorIndex];
+	int bufferViewIndex = accessor["bufferView"];
+	json bufferView = jsonBufferViews[bufferViewIndex];
 
-	// Generate VAO, VBOs, and IBOs
-	glGenVertexArrays(1, VAOs.data());
-	glGenBuffers(1, VBOs.data());
-	glGenBuffers(1, EBOs.data());
+	size_t accessorByteOffset = accessor.contains("byteOffset") ? accessor["byteOffset"].get<size_t>() : 0;
+	size_t viewByteOffset = bufferView.contains("byteOffset") ? bufferView["byteOffset"].get<size_t>() : 0;
 
-	glBindVertexArray(VAOs[0]);
+	int bufferIndex = bufferView["buffer"];
+	const std::vector<char>& bufferData = buffers[bufferIndex];
 
-	// Bind and fill VBO with vertex data
-	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
-
-	// Bind and fill EBO with indices data
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[0]);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
-
-	// Position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-	glEnableVertexAttribArray(0);
-	// Normal attribute
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-	// Texture attribute
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(6 * sizeof(float)));
-	glEnableVertexAttribArray(2);
-
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-	std::vector<Mesh> meshes;
-	Mesh mesh;
-
-	std::vector<Texture::Texture> textures;
-	textures.push_back(LoadDefaultTexture());
-	mesh.textures = textures;
-	mesh.vertices = vertices;
-	mesh.indices = indices;
-	mesh.VAO = VAOs[0];
-	mesh.VBO = VBOs[0];
-	mesh.EBO = EBOs[0];
-
-	return mesh;
+	return bufferData.data() + accessorByteOffset + viewByteOffset;
 }

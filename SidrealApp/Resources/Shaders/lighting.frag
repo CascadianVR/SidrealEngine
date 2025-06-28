@@ -28,25 +28,10 @@ uniform mat4 lightViewProjection;
 uniform sampler2D colorTexture;
 uniform sampler2DArray shadowMap;
 
-float shadowStrength = 0.5f;
+float shadowStrength = 1.0f;
 vec3 ambientLight = vec3(0.5f);
 
-float CalculateBias(vec3 normal, vec3 lightDir)
-{
-    float normalDotLight = max(dot(normal, lightDir), 0.0);
-    
-    // Depth bias: small constant offset
-    float depthBias = 0.002;
-    float slopeBiasFactor = 0.004;
-
-    // Slope bias: proportional to angle between normal and light direction
-    float slopeBias = slopeBiasFactor * (1.0 - normalDotLight);
-
-    // Combined bias
-    return depthBias + slopeBias;
-}
-
-float ShadowCalculation(float NdotL)
+int GetCascadeLayer()
 {
     // Select cascade layer
     vec4 fragPosViewSpace = fs_in.viewMatrix * fs_in.worldPosition;
@@ -66,21 +51,122 @@ float ShadowCalculation(float NdotL)
         layer = cascadeCount - 1;
     }
 
-    vec4 fPosLightSpace = lightSpaceMatrices[layer] * fs_in.worldPosition;
+    return layer;
+}
 
+// required when using a perspective projection matrix
+float LinearizeDepth(float depth, float near, float far)
+{
+    float z = depth * 2.0 - 1.0; // Back to NDC 
+    return (2.0 * near * far) / (far + near - z * (far - near));
+}
+
+
+float CalculateBias(vec3 normal, vec3 lightDir, int layer)
+{
+    float normalDotLight = max(dot(normal, lightDir), 0.0);
+    
+    // Depth bias: small constant offset
+    float slopeBiasFactors[3] = float[](0.005, 0.006, 0.008);
+    float slopeBiasFactor = slopeBiasFactors[layer];
+
+    float depthBiasFactors[3] = float[](0.0002, 0.0001, 0);
+    float depthBias = depthBiasFactors[layer];
+
+    // Slope bias: proportional to angle between normal and light direction
+    float slopeBias = slopeBiasFactor * (1.0 - normalDotLight);
+
+    // Combined bias
+    return depthBias + slopeBias;
+}
+
+vec2 hammersley2d(int i, int N)
+{
+    float rdi = float(i);
+    float u = rdi / float(N);
+    float v = bitfieldReverse(i) * 2.3283064365386963e-10; // 1.0 / (2^32)
+    return vec2(u, v);
+}
+
+float ShadowCalculation2(float NdotL)
+{
+    int cascadeLayer = GetCascadeLayer();
+
+    vec4 fPosLightSpace = lightSpaceMatrices[cascadeLayer] * fs_in.worldPosition;
     vec3 projCoords = fPosLightSpace.xyz / fPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
 
-    int kernelRadii[3] = int[](1, 2, 3); // Hard code 3 kernel radii for 3 cascades
-    int kernelRadius = kernelRadii[layer];
+    if (projCoords.z > 1.0)
+        return 0.0;
 
-    int samples = 0;
-    float shadow = 0.0;
+    float bias = CalculateBias(fs_in.normal, lightDirection, cascadeLayer);
+    vec2 texelSize = 1.0 / vec2(textureSize(shadowMap, 0));
     float currentDepth = projCoords.z;
-    //float bias = max(0.005 * (1.0 - NdotL), 0.001);
-    float bias = CalculateBias(fs_in.normal, lightDirection);
-    vec2 texelSize = 1.0f / vec2(textureSize(shadowMap, 0));
 
+    // --- PCSS Step 1: Search blocker ---
+    const int searchSamplesLayer[] = int[](16, 24, 32);
+    const int searchSamples = searchSamplesLayer[cascadeLayer];
+    float avgBlockerDepth = 0.0;
+    int blockerCount = 0;
+
+    float searchRadius = 20 * (1.0 - NdotL); // Tunable: world-to-shadow softness scale
+
+    for (int i = 0; i < searchSamples; ++i)
+    {
+        vec2 offset = hammersley2d(i, searchSamples) * searchRadius * texelSize;
+        float sampleDepth = texture(shadowMap, vec3(projCoords.xy + offset, cascadeLayer)).r;
+        if (sampleDepth < currentDepth - bias)
+        {
+            avgBlockerDepth += sampleDepth;
+            blockerCount++;
+        }
+    }
+
+    if (blockerCount == 0)
+        return 0.0; // Fully lit if no blocker
+
+    avgBlockerDepth /= float(blockerCount);
+
+    // --- PCSS Step 2: Penumbra size ---
+    const int penumbraMultipliers[] = int[](100, 50, 5);
+    int penumbraMultiplier = penumbraMultipliers[cascadeLayer];
+    float penumbra = (currentDepth - avgBlockerDepth) / avgBlockerDepth;
+    float filterRadius = penumbra * penumbraMultiplier; // Tunable softness scale
+
+    // --- PCSS Step 3: PCF with variable filter size ---
+    const int pcfSamples = 32;
+    float shadow = 0.0;
+    for (int i = 0; i < pcfSamples; ++i)
+    {
+        vec2 offset = hammersley2d(i, pcfSamples) * filterRadius * texelSize;
+        float sampleDepth = texture(shadowMap, vec3(projCoords.xy + offset, cascadeLayer)).r;
+        if (currentDepth - bias > sampleDepth)
+            shadow += 1.0;
+    }
+
+    shadow /= float(pcfSamples);
+    return shadow;
+}
+
+float ShadowCalculation(float NdotL)
+{
+    int cascadeLayer = GetCascadeLayer();
+
+    vec4 fPosLightSpace = lightSpaceMatrices[cascadeLayer] * fs_in.worldPosition;
+    vec3 projCoords = fPosLightSpace.xyz / fPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    // Calculate kernel radius for leeping PCF
+    float texelScale = 2; // tweak this for blur softness
+    vec2 shadowMapResolution = vec2(textureSize(shadowMap, 0));
+    int kernelRadius = int(texelScale * shadowMapResolution / 2048.0);
+    kernelRadius = clamp(kernelRadius, 1, 10); // limit max radius
+
+    float shadow = 0.0;
+    int samples = 0;
+    float currentDepth = projCoords.z;
+    float bias = CalculateBias(fs_in.normal, lightDirection, cascadeLayer);
+    vec2 texelSize = 1.0f / shadowMapResolution;
     for(int x = -kernelRadius; x <= kernelRadius; ++x)
     {
         for(int y = -kernelRadius; y <= kernelRadius; ++y)
@@ -90,8 +176,9 @@ float ShadowCalculation(float NdotL)
             // Only sample if inside shadow map bounds
             if (offset.x >= 0.0 && offset.x <= 1.0 && offset.y >= 0.0 && offset.y <= 1.0)
             {
-                float pcfDepth = texture(shadowMap, vec3(offset, layer)).r;
-                shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+                float pcfDepth = texture(shadowMap, vec3(offset, cascadeLayer)).r;
+
+                shadow += smoothstep(0.0, 1.0, currentDepth - bias > pcfDepth ? 1.0 : 0.0);
                 samples += 1;
             }     
         }    
@@ -172,7 +259,6 @@ void main()
     shadow = mix(0.0, shadow.x, shadowStrength).xxx;
     shadow = vec3(1.0f) - shadow;
     shadow = clamp(shadow, 0.0f, 1.0f);
-    // Visualize cascades
 
     // Add color and lighting
     vec3 color = textureColor.xyz;
@@ -182,4 +268,5 @@ void main()
     color = color * (max(shadow.xxx, ambientLight));
 
     FragColor = vec4(color, 1.0f);
+    //FragColor = vec4(fs_in.normal  * 0.5 + 0.5, 1.0f);
 } 

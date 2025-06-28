@@ -3,7 +3,7 @@
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
 #include <glm/ext/matrix_common.hpp>
-#include "../Texture.h"
+#include "Texture.h"
 
 struct Vertex
 {

@@ -1,5 +1,4 @@
 #pragma once
-#include "Scene.h"
 #include "Entity/EntityManager.h"
 
 namespace Engine 
@@ -8,8 +7,7 @@ namespace Engine
 	const int WINDOW_HEIGHT = 720;
 
 	void Run(const char* startScenePath);
-	int GetCurentScreenWidth();
-	int GetCurentScreenHeight();
+	void ForceRender();
 	float GetDeltaTime();
 	EntityManager* GetEntityManager();
 }

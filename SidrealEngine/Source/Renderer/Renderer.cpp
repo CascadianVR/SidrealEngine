@@ -1,22 +1,22 @@
+#include <filesystem>
 #include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <iostream>
-#include <glm/ext/matrix_transform.hpp>
-#include <glm/ext/matrix_clip_space.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/string_cast.hpp>
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <iostream>
 #include "Renderer.h"
 #include "Shader.h"
-#include "../MathUtils.h"
+#include "Utils/MathUtils.h"
 #include "Model.h"
-#include "../Camera.h"
-#include "../MeshPrimative.h"
-#include "../Texture.h"
-#include "../Engine.h"
-#include "../Entity/Components/Transform.h"
-#include <filesystem>
+#include "Camera.h"
+#include "MeshPrimative.h"
+#include "Texture.h"
+#include "Entity/Components/Transform.h"
+#include <Window.h>
+#include <Utils/Timer.h>
 
-const unsigned int ShadowMapSize = 2048;
+
+const unsigned int ShadowMapSize = 2048 * 2;
 
 static void RenderSkybox();
 static void InitializeShadowPass();
@@ -27,9 +27,9 @@ static void RenderLightingPass(Model& model, EntityTransform::Transform& transfo
 static glm::mat4 CalculateLightSpaceMatrix(float nearPlane, float farPlane);
 
 unsigned int shaderLightingProgram;
-unsigned int shaderLightingInstancedProgram;
+//unsigned int shaderLightingInstancedProgram;
 unsigned int shaderShadowProgram;
-unsigned int shaderShadowInstancedProgram;
+//unsigned int shaderShadowInstancedProgram;
 unsigned int shaderEquirectangularProgram;
 unsigned int shaderDebugProgram;
 
@@ -56,8 +56,6 @@ void Renderer::Initialize()
     skyboxModel = MeshPrimative::CreateCube();
     hdrTexture = Texture::CreateTextureHDR("Resources\\kloppenheim_06_puresky_4k.hdr");
     
-	Scene::SceneData& sceneData = *Scene::GetActiveScene();
-
     // Initialize shadow pass for rendering
     InitializeShadowPass();
 
@@ -91,7 +89,7 @@ void Renderer::SetupShadowPass()
 void Renderer::SetupLightingPass()
 {
     // Set up lighting pass
-    glViewport(0, 0, Engine::GetCurentScreenWidth(), Engine::GetCurentScreenHeight());
+    glViewport(0, 0, Window::GetCurentScreenWidth(), Window::GetCurentScreenHeight());
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -110,7 +108,7 @@ void Renderer::SetupLightingPass()
 
     Camera::UpdateCamera(&shaderLightingProgram);
     Shader::SetUniform3f(&shaderLightingProgram, "cameraForward", MathUtils::Vec3toFloat3(Camera::GetCameraForward()));
-    Shader::SetUniform3f(&shaderLightingProgram, "lightDirection", MathUtils::Vec3toFloat3(lightDirection));
+    Shader::SetUniform3f(&shaderLightingProgram, "lightDirection", MathUtils::Vec3toFloat3(glm::normalize(lightDirection)));
 
     // Bind shadow map to texture slot 1 - only need to be bound once per pass
     Texture::SetActiveAndBindTexture(depthMaps, 1);
@@ -135,13 +133,14 @@ void Renderer::LoadShaders(bool reload)
     // If hot reloading shaders, destroy previous ones before loading new ones
     if (reload)
     {
+        glUseProgram(0);
         glDeleteProgram(shaderLightingProgram);
-        glDeleteProgram(shaderLightingInstancedProgram);
+        //glDeleteProgram(shaderLightingInstancedProgram);
         glDeleteProgram(shaderShadowProgram);
-        glDeleteProgram(shaderShadowInstancedProgram);
+        //glDeleteProgram(shaderShadowInstancedProgram);
         glDeleteProgram(shaderEquirectangularProgram);
         glDeleteProgram(shaderDebugProgram);
-
+        Shader::ClearUniformCache();
         std::cout << "Hot Reloading Shaders...\n";
     }
     else
@@ -154,7 +153,7 @@ void Renderer::LoadShaders(bool reload)
     glUseProgram(shaderLightingProgram);
     Shader::SetUniform1i(&shaderLightingProgram, "colorTexture", 0);
     Shader::SetUniform1i(&shaderLightingProgram, "shadowMap", 1);
-    Shader::SetUniform1i(&shaderLightingProgram, "cascadeCount", shadowCascadeLevels.size() + 1);
+    Shader::SetUniform1i(&shaderLightingProgram, "cascadeCount", static_cast<int>(shadowCascadeLevels.size() + 1));
     Shader::SetUniform1fv(&shaderLightingProgram, "cascadePlaneDistances", shadowCascadeLevels.data(), static_cast<int>(shadowCascadeLevels.size()));
 
     shaderShadowProgram = Shader::CreateShaderProgram("Resources\\Shaders\\shadow.vert", "Resources\\Shaders\\shadow.frag", "Resources\\Shaders\\shadow.geom");
@@ -169,7 +168,7 @@ void Renderer::LoadShaders(bool reload)
 
 void Renderer::SetLightDirection(float* newDirection)
 {
-    lightDirection = glm::normalize(glm::vec3(newDirection[0], newDirection[1], newDirection[2]));
+    lightDirection = glm::vec3(newDirection[0], newDirection[1], newDirection[2]);
 }
 
 float* Renderer::GetLightDirection()
@@ -183,7 +182,7 @@ static void InitializeShadowPass()
 	const unsigned int cascadeCount = 3;
 	const float far = Camera::GetFarPlane();
 	const float near = Camera::GetNearPlane();
-	const float lambda = 0.8f;
+	const float lambda = 0.7f;
 
     //            ---- Shadow Cascade Range ----
 	//   nearplane | 1st cascade | 2nd cascade | farplane
@@ -237,8 +236,8 @@ static void InitializeLightingPass()
     glUseProgram(shaderLightingProgram);
     Camera::UpdateCamera(&shaderLightingProgram);
     Shader::SetUniform3f(&shaderLightingProgram, "cameraForward", MathUtils::Vec3toFloat3(Camera::GetCameraForward()));
-    Shader::SetUniform3f(&shaderLightingProgram, "lightDirection", MathUtils::Vec3toFloat3(lightDirection));
-    Shader::SetUniform1i(&shaderLightingProgram, "cascadeCount", shadowCascadeLevels.size() + 1);
+    Shader::SetUniform3f(&shaderLightingProgram, "lightDirection", MathUtils::Vec3toFloat3(glm::normalize(lightDirection)));
+    Shader::SetUniform1i(&shaderLightingProgram, "cascadeCount", static_cast<int>(shadowCascadeLevels.size() + 1));
     for (size_t i = 0; i < shadowCascadeLevels.size(); ++i)
     {
         std::string uniformName = "cascadePlaneDistances[" + std::to_string(i) + "]";
@@ -287,7 +286,7 @@ static void RenderSkybox()
     glBindTexture(GL_TEXTURE_2D, hdrTexture);
 
     // Draw the skybox model
-    glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(mesh.indices.size()), GL_UNSIGNED_INT, 0);
 
     // Unbind vertex array and set depth func back to default
     glBindVertexArray(0);
@@ -307,7 +306,7 @@ static void RenderShadowPass(Model& model, EntityTransform::Transform& transform
         Shader::SetMatrix4f(&shaderShadowProgram, "model", EntityTransform::GetModelMatrix(transform));
 
         // Draw mesh
-        glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(mesh.indices.size()), GL_UNSIGNED_INT, 0);
     }
 }
 
@@ -332,7 +331,7 @@ static void RenderLightingPass(Model& model, EntityTransform::Transform& transfo
         }
 
         // Draw mesh
-        glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(mesh.indices.size()), GL_UNSIGNED_INT, 0);
     }
 }
 
@@ -357,14 +356,8 @@ static void UpdateLightProjectionViews()
 
 static glm::mat4 CalculateLightSpaceMatrix(float nearPlane, float farPlane)
 {
-    //float nearPlane = (index == 0) ? Camera::GetNearPlane() : shadowCascadeLevels[index - 1];
-    //float farPlane = (index < shadowCascadeLevels.size()) ? shadowCascadeLevels[index] : Camera::GetFarPlane();
-    //float overlap = 0.5f * (farPlane - nearPlane); // ~1% overlap
-	//nearPlane -= overlap;
-	//farPlane += overlap;
-
     const auto cameraProjection = glm::perspective(glm::radians(Camera::GetFOV()), 
-        (float)Engine::GetCurentScreenWidth() / (float)Engine::GetCurentScreenHeight(), nearPlane, farPlane);
+        (float)Window::GetCurentScreenWidth() / (float)Window::GetCurentScreenHeight(), nearPlane, farPlane);
 
 	glm::mat4 inverseViewProjection = glm::inverse(cameraProjection * Camera::GetViewMatrix());
 
@@ -399,7 +392,7 @@ static glm::mat4 CalculateLightSpaceMatrix(float nearPlane, float farPlane)
 
 	// Calculate the light view matrix
     glm::mat4 lightView = glm::lookAt(
-        frustumCenter - lightDirection,
+        frustumCenter - glm::normalize(lightDirection),
         frustumCenter,
         glm::vec3(0.0f, 1.0f, 0.0f)
     );
@@ -426,6 +419,27 @@ static glm::mat4 CalculateLightSpaceMatrix(float nearPlane, float farPlane)
     maxBounds.x += padding;
     maxBounds.y += padding;
 
+	// Adjust bounds to maintain aspect ratio of the shadow map
+    float width = maxBounds.x - minBounds.x;
+    float height = maxBounds.y - minBounds.y;
+    float aspect = 1.0f; 
+
+    if (width > height * aspect)
+    {
+        float newHeight = width / aspect;
+        float diff = newHeight - height;
+        minBounds.y -= diff * 0.5f;
+        maxBounds.y += diff * 0.5f;
+    }
+    else
+    {
+        float newWidth = height * aspect;
+        float diff = newWidth - width;
+        minBounds.x -= diff * 0.5f;
+        maxBounds.x += diff * 0.5f;
+    }
+
+
     // Near/far planes in light space, with a bit of padding
     float nearPlaneLight = -maxBounds.z - padding;  // note: light looks down -Z
     float farPlaneLight = -minBounds.z + padding;
@@ -436,29 +450,17 @@ static glm::mat4 CalculateLightSpaceMatrix(float nearPlane, float farPlane)
     float bottom = minBounds.y;
     float top = maxBounds.y;
 
+
     glm::mat4 lightProjection = glm::ortho(left, right, bottom, top, nearPlaneLight, farPlaneLight);
 
-    // Combine for snapping
-    glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+    // Calculate texel size in light space
+    float texelSize = (right - left) / static_cast<float>(ShadowMapSize);
 
-    // Calculate origin in light space (projection * view * origin)
-    glm::vec4 origin = lightSpaceMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-    origin /= origin.w;
+    // Snap the light view matrix's position to texel-sized increments
+    lightView[3][0] -= glm::mod(lightView[3][0], texelSize);
+    lightView[3][1] -= glm::mod(lightView[3][1], texelSize);
 
-    // Compute texel size in light space (assuming orthographic width)
-    float texelSizeX = (right - left) / ShadowMapSize;
-    float texelSizeY = (top - bottom) / ShadowMapSize;
-
-    // Snap the origin to the nearest texel
-    float offsetX = std::round(origin.x / texelSizeX) * texelSizeX - origin.x;
-    float offsetY = std::round(origin.y / texelSizeY) * texelSizeY - origin.y;
-
-    // Create offset matrix to snap the projection (only translate x,y)
-    glm::mat4 offsetMat = glm::translate(glm::mat4(1.0f), glm::vec3(offsetX, offsetY, 0.0f));
-
-    // Apply offset to lightProjection
-    lightProjection = offsetMat * lightProjection;
-
+    // Return the final light-space transformation matrix
     return lightProjection * lightView;
 }
 
@@ -473,7 +475,7 @@ static void renderQuad(int i)
         glGenBuffers(1, &quadVBO);
         glBindVertexArray(quadVAO);
         glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 4.0f * 5.0f, nullptr, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, static_cast <GLsizeiptr>(sizeof(float) * 4.0f * 5.0f), nullptr, GL_DYNAMIC_DRAW);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(1);
@@ -482,15 +484,15 @@ static void renderQuad(int i)
 
     float quadVertices[] = {
         // positions          // texture Coords
-        -1.0f, -1.0f, 0.0f,   1.0f, 1.0f, // bottom left
-        -1.0f,  0.0f, 0.0f,   1.0f, 0.0f, // top left
-         0.0f, -1.0f, 0.0f,   0.0f, 1.0f, // bottom right
-         0.0f,  0.0f, 0.0f,   0.0f, 0.0f, // top right
+        -1.0f, -1.0f, 0.0f,   0.0f, 0.0f, // bottom left
+        -1.0f,  0.0f, 0.0f,   0.0f, 1.0f, // top left
+         0.0f, -1.0f, 0.0f,   1.0f, 0.0f, // bottom right
+         0.0f,  0.0f, 0.0f,   1.0f, 1.0f, // top right
     };
 
     // Scale quad vertices to fit the screen aspect ratio and push it to the bottom left corner
-    int height = Engine::GetCurentScreenHeight();
-    int width = Engine::GetCurentScreenWidth();
+    int height = Window::GetCurentScreenHeight();
+    int width = Window::GetCurentScreenWidth();
     float aspect = float(width) / float(height);
     if (aspect > 1.0f)
     {

@@ -1,14 +1,13 @@
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #include <GLFW/glfw3.h>
-#include <Windows.h>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/trigonometric.hpp>
-#include <iostream>
 #include "Camera.h"
 #include "Engine.h"
 #include "Input.h"
-#include "MathUtils.h"
+#include "Utils/MathUtils.h"
 #include "Renderer/Renderer.h"
-#include "Renderer/Shader.h"
 
 void UpdateCameraPosition(GLFWwindow* window);
 void UpdateCameraRotation();
@@ -16,6 +15,7 @@ void MouseCallback(GLFWwindow* window, double xpos, double ypos);
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 const float cameraMoveSpeed = 5.0f;
+const float sprintSpeedMultiplier = 2.5f;
 glm::vec3 cameraForwardTarget;
 
 bool mouseLocked = false;
@@ -32,16 +32,17 @@ HANDLE fragShaderChanged;
 
 void Input::Initialize(GLFWwindow* window)
 {
-    glfwSetCursorPosCallback(window, MouseCallback);
-    glfwSetKeyCallback(window, KeyCallback);
-
+	// Set mouse position to the center of the window BEFORE setting event 
+	// callbacks so it doesn't trigger them on startup, then lock the cursor.
     int width, height;
     glfwGetWindowSize(window, &width, &height);
-    glfwSetCursorPos(window, width / 2, height / 2);
+    glfwSetCursorPos(window, (float)width / 2, (float)height / 2);
+    glfwSetCursorPosCallback(window, MouseCallback);
+    glfwSetKeyCallback(window, KeyCallback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     mouseLocked = true;
 
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
+	// Get the initial camera position and forward vector
     cameraForwardTarget = Camera::GetCameraForward();
     cameraPosTarget = Camera::GetCameraPosition();
 }
@@ -109,34 +110,40 @@ void UpdateCameraPosition(GLFWwindow* window)
 {
     float deltaTime = Engine::GetDeltaTime();
 
+	float currentMoveSpeed = cameraMoveSpeed;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+    {
+		currentMoveSpeed *= sprintSpeedMultiplier;
+    }
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     {
-        cameraPosTarget += cameraMoveSpeed * Camera::GetCameraForward() * deltaTime;
+        cameraPosTarget += currentMoveSpeed * Camera::GetCameraForward() * deltaTime;
     }
 
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
     {
-        cameraPosTarget += cameraMoveSpeed * Camera::GetCameraForward() * -1.0f * deltaTime;
+        cameraPosTarget += currentMoveSpeed * Camera::GetCameraForward() * -1.0f * deltaTime;
     }
 
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
     {
-        cameraPosTarget += cameraMoveSpeed * Camera::GetCameraRight() * deltaTime;
+        cameraPosTarget += currentMoveSpeed * Camera::GetCameraRight() * deltaTime;
     }
 
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     {
-        cameraPosTarget += cameraMoveSpeed * Camera::GetCameraRight() * -1.0f * deltaTime;
+        cameraPosTarget += currentMoveSpeed * Camera::GetCameraRight() * -1.0f * deltaTime;
     }
 
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
     {
-        cameraPosTarget += cameraMoveSpeed * glm::vec3(0.0f, 1.0f, 0.0f) * deltaTime;
+        cameraPosTarget += currentMoveSpeed * glm::vec3(0.0f, 1.0f, 0.0f) * deltaTime;
     }
 
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
     {
-        cameraPosTarget += cameraMoveSpeed * glm::vec3(0.0f, 1.0f, 0.0f) * -1.0f * deltaTime;
+        cameraPosTarget += currentMoveSpeed * glm::vec3(0.0f, 1.0f, 0.0f) * -1.0f * deltaTime;
     }
 
     Camera::SetCameraPosition(MathUtils::LerpVec3(Camera::GetCameraPosition(), cameraPosTarget, deltaTime * 10.0f));
@@ -195,6 +202,6 @@ void MouseCallback(GLFWwindow* window, double xposIn, double yposIn)
     cameraForwardTarget.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     cameraForwardTarget.y = sin(glm::radians(pitch));
     cameraForwardTarget.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    glm::normalize(cameraForwardTarget);
+    cameraForwardTarget = glm::normalize(cameraForwardTarget);
 }
 

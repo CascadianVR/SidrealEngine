@@ -3,5 +3,5 @@
 
 namespace GLTFLoader
 {
-	Model LoadBinary(const char* path);
+	void LoadBinary(const char* path, Model& model);
 }

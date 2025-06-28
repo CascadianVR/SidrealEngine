@@ -1,11 +1,11 @@
 #pragma once
 #include "EntityManager.h"
 #include "Components/Transform.h"
-#include "../Renderer/Model.h"
+#include "Renderer/Model.h"
 
 void RenderSystem(EntityManager& entityManager)
 {
-	ScopedTimer timer("RenderSystem");
+	ScopedTimer RenderSystem("RenderSystem");
 
 	// Clear the screen
     glClearColor(0.0f, 1.0f, 0.5f, 1.0f);
@@ -26,7 +26,7 @@ void RenderSystem(EntityManager& entityManager)
 
     {
         // Render lighting pass
-        ScopedTimer timer("LightingPass");
+        ScopedTimer LightingPass("LightingPass");
         Renderer::SetupLightingPass();
         for (int i = 0; i < MAX_ENTITIES; ++i) {
             if (entityManager.hasTransform[i] && entityManager.hasModel[i]) {

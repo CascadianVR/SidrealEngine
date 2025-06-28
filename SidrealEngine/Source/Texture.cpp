@@ -1,8 +1,7 @@
 #include <iostream>
 #include <glad/glad.h>
-
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "Utils\stb_image.h"
 #include "Texture.h"
 #include "Renderer\Shader.h"
 
@@ -14,7 +13,7 @@ unsigned int Texture::CreateTexture2D(const char* path)
     glBindTexture(GL_TEXTURE_2D, texture);
 
     int width, height, nrChannels;
-    stbi__vertically_flip_on_load = true;
+    stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0);
     if (!data)
     {
@@ -85,7 +84,7 @@ unsigned int Texture::CreateBindlessTexture(const char* path)
     glCreateTextures(GL_TEXTURE_2D, 1, &texture);
 
     int width, height, nrChannels;
-    stbi__vertically_flip_on_load = true;
+    stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0);
     if (!data)
     {

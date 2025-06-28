@@ -3,9 +3,11 @@
 #include "Renderer/Shader.h"
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
+#include <Window.h>
+#include <iostream>
 
 float nearPlane = 0.1f;
-float farPlane = 100.0f;
+float farPlane = 50.0f;
 float fov = 45.0f;
 
 glm::vec3 cameraPosition;
@@ -35,7 +37,9 @@ void Camera::UpdateCamera(unsigned int* shaderProgram)
     view = glm::lookAt(cameraPosition, cameraPosition + cameraForward, cameraUp);
 
     // Perspective projection
-    projection = glm::perspective(glm::radians(45.0f), (float)Engine::GetCurentScreenWidth() / (float)Engine::GetCurentScreenHeight(), nearPlane, farPlane);
+    int width = Window::GetCurentScreenWidth();
+    int height = Window::GetCurentScreenHeight();
+    projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, nearPlane, farPlane);
 
     Shader::SetMatrix4f(shaderProgram, "view", view);
     Shader::SetMatrix4f(shaderProgram, "projection", projection);

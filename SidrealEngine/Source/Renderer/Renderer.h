@@ -1,6 +1,6 @@
 #pragma once
+#include "Entity/Components/Transform.h"
 #include "Model.h"
-#include "../Entity/Components/Transform.h"
 
 namespace Renderer
 {

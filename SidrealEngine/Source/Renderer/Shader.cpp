@@ -2,16 +2,25 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
-
 #include "Shader.h"
-#include <glm/gtc/type_ptr.hpp>
 #include <unordered_map>
+#include <string>
+#include <glm/ext/matrix_float4x4.hpp>
+#include <glm/gtc/type_ptr.inl>
 
 static char* LoadShader(const char* path);
 static int GetUniformLocation(unsigned int* shaderProgram, const char* uniformName);
 
 std::unordered_map<const char*, int> uniformLocations;
+std::unordered_map<const char*, int> unusedUniformLocations;
 
+/// <summary>
+/// Creates and links an OpenGL shader program from provided vertex, fragment, and optional geometry shader source files.
+/// </summary>
+/// <param name="vertexShaderPath">Path to the vertex shader source file.</param>
+/// <param name="fragmentShaderPath">Path to the fragment shader source file.</param>
+/// <param name="geometryShaderPath">Path to the geometry shader source file, or nullptr if not used.</param>
+/// <returns>The OpenGL handle (unsigned int) of the created shader program.</returns>
 unsigned int Shader::CreateShaderProgram(const char* vertexShaderPath, const char* fragmentShaderPath, const char* geometryShaderPath)
 {
     // Vertex Shader
@@ -60,14 +69,11 @@ unsigned int Shader::CreateShaderProgram(const char* vertexShaderPath, const cha
 		}
 	}
 
-    // Shader Program
+    // Create program and attach shaders
     unsigned int shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
-    if (geometryShaderPath != nullptr)
-    {
-        glAttachShader(shaderProgram, geometryShader);
-	}
+    if (geometryShaderPath != nullptr) glAttachShader(shaderProgram, geometryShader);
     glLinkProgram(shaderProgram);
 
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
@@ -79,15 +85,18 @@ unsigned int Shader::CreateShaderProgram(const char* vertexShaderPath, const cha
     // Use newly made program
     glUseProgram(shaderProgram);
 
-    // Delete programs since they are no longer needed
+    // Delete shaders since they are no longer needed
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
-    if (geometryShaderPath != nullptr)
-    {
-        glDeleteShader(geometryShader);
-	}
+    if (geometryShaderPath != nullptr) glDeleteShader(geometryShader);
 
     return shaderProgram;
+}
+
+void Shader::ClearUniformCache()
+{
+    uniformLocations.clear();
+    unusedUniformLocations.clear();
 }
 
 void Shader::SetUniform1i(unsigned int* shaderProgram, const char* uniformName, const int value)
@@ -149,6 +158,13 @@ static char* LoadShader(const char* path) {
     return shaderContent;
 }
 
+/// <summary>
+/// Retrieves the location of a uniform variable in a shader program, using a cache to avoid redundant lookups.
+/// The unused uniform locations are also tracked to prevent repeated warnings.
+/// </summary>
+/// <param name="shaderProgram">Pointer to the shader program identifier.</param>
+/// <param name="uniformName">Name of the uniform variable to look up.</param>
+/// <returns>The location of the uniform variable if found; otherwise, -1.</returns>
 static int GetUniformLocation(unsigned int* shaderProgram, const char* uniformName)
 {
     const char* lookupName = uniformName + *shaderProgram;
@@ -162,7 +178,12 @@ static int GetUniformLocation(unsigned int* shaderProgram, const char* uniformNa
 
     if (location == -1)
     {
+        if (unusedUniformLocations.find(lookupName) != unusedUniformLocations.end())
+        {
+            return -1;
+        }
         std::cerr << "Warning: Uniform '" << uniformName << "' not found in shader program '" << shaderProgram << "'\n";
+        unusedUniformLocations[lookupName] = location;
         return -1;
     }
 

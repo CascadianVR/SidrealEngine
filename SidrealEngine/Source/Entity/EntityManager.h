@@ -1,6 +1,8 @@
 #pragma once
 #include <queue>
-#include "Components/Transform.h"
+#include <vector>
+#include <Renderer/Model.h>
+#include <Entity/Components/Transform.h>
 
 typedef int Entity;
 const int MAX_ENTITIES = 1024;

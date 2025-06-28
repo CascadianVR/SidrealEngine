@@ -1,4 +1,3 @@
-
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
@@ -10,6 +9,7 @@
 #include "ModelLoader.h"
 #include "Renderer/Model.h"
 #include "Texture.h"
+#include "GLTFLoader.h"
 
 using namespace ModelLoader;
 
@@ -21,7 +21,6 @@ const char* currentModelPath = nullptr;
 unsigned int textureIndex = 0;
 std::vector<Texture::Texture> loadedTextures;
 std::unordered_map<std::string, Model> loadedModels;
-Assimp::Importer importer;
 
 void ModelLoader::LoadModel(const char* path, Model& model)
 {
@@ -64,32 +63,64 @@ void ModelLoader::LoadModel(const char* path, Model& model)
     //    return model;
 	//}
 
-    unsigned int importOptions = aiProcess_Triangulate;
-
-	const aiScene* scene = importer.ReadFile(path, importOptions);
-	
-    if (scene == nullptr || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
-    {
-        std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
-        return;
-    }
-
-    std::string stringPath = path;
-    std::string directory = stringPath.substr(0, stringPath.find_last_of('/'));
-
     std::vector<Mesh> meshes;
 
-    ProcessNode(scene->mRootNode, scene, &meshes);
+	// Get extension of the file
+	std::string extension = std::string(path).substr(std::string(path).find_last_of('.') + 1);
+    if (extension == "obj" || extension == "fbx")
+    {
+        //unsigned int importOptions = aiProcess_Triangulate;
+        unsigned int importOptions =
+            aiProcess_Triangulate |
+            aiProcess_JoinIdenticalVertices |
+            aiProcess_GenNormals |
+            aiProcess_CalcTangentSpace |
+            aiProcess_ImproveCacheLocality |
+            aiProcess_SortByPType;
+
+        Assimp::Importer importer;
+
+        const aiScene* scene = importer.ReadFile(path, importOptions);
+
+        if (scene == nullptr || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
+        {
+            std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
+            return;
+        }
+
+        std::string stringPath = path;
+        std::string directory = stringPath.substr(0, stringPath.find_last_of('/'));
+
+
+        ProcessNode(scene->mRootNode, scene, &meshes);
+    }
+    else if (extension == "glb" || extension == "gltf") // SPLIT LOADNG INTO FUNTIONS
+    {
+        GLTFLoader::LoadBinary(path, model);
+		meshes = model.meshes;
+        if (model.meshes.empty())
+        {
+            std::cout << "ERROR::MODEL_LOADER::Failed to load GLTF model: " << path << std::endl;
+            return;
+        }
+    }
+    else
+    {
+        std::cout << "ERROR::MODEL_LOADER::Unsupported file format: " << extension << std::endl;
+        return;
+	}
+
+	std::cout << "Mesheds loaded: " << meshes.size() << std::endl;
 
     unsigned int *VAOs, *VBOs, *EBOs, *instanceVBOs;
     VAOs = new unsigned int[meshes.size()];
     VBOs = new unsigned int[meshes.size()];
     EBOs = new unsigned int[meshes.size()];
     instanceVBOs = new unsigned int[meshes.size()];
-    glGenVertexArrays(meshes.size(), VAOs);
-    glGenBuffers(meshes.size(), VBOs);
-    glGenBuffers(meshes.size(), EBOs);
-    glGenBuffers(meshes.size(), instanceVBOs);
+    glGenVertexArrays((GLsizei)meshes.size(), VAOs);
+    glGenBuffers((GLsizei)meshes.size(), VBOs);
+    glGenBuffers((GLsizei)meshes.size(), EBOs);
+    glGenBuffers((GLsizei)meshes.size(), instanceVBOs);
 
     for (int i = 0; i < meshes.size(); i++)
     {

@@ -3,11 +3,11 @@
 #include <json.hpp>
 #include <string>
 #include "AssetManager.h"
+#include "Entity/Components/Transform.h"
+#include "Entity/EntityManager.h"
 #include "ModelLoader.h"
 #include "Renderer/Model.h"
 #include "Scene.h"
-#include "Entity/EntityManager.h"
-#include "Entity/Components/Transform.h"
 
 Scene::SceneData* AssetManager::LoadSceneFromJSON(const char* jsonPath, EntityManager* entityManager)
 {
