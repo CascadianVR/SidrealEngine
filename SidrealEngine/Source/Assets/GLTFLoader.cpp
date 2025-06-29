@@ -1,11 +1,10 @@
-#include <glad/glad.h>
 #include <fstream>
 #include <vector>
 #include <iostream>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/ext/vector_float2.hpp>
 #include <json.hpp>
-#include "GLTFLoader.h"
+#include "Assets/GLTFLoader.h"
 #include "Renderer/Model.h"
 #include "Texture.h"
 
@@ -108,6 +107,7 @@ void GLTFLoader::LoadBinary(const char* path, Model& model)
 
 	// Get json chunk
 	std::string jsonChunk(buffer.begin() + 20, buffer.begin() + 20 + jsonChunkLength);
+	//std::cout << "JSON Chunk: " << jsonChunk << std::endl;
 
 	// Parse json chunk
 	json jsonData = nlohmann::json::parse(jsonChunk);
@@ -161,9 +161,6 @@ void GLTFLoader::LoadBinary(const char* path, Model& model)
 	}
 
 	std::vector<BufferView> bufferViews;
-	//std::cout << "BufferViews size: " << jsonBufferViews.size() << std::endl;
-	//std::cout << "Buffers size: " << jsonData["buffers"].size() << std::endl;
-
 	for (int i = 0; i < accessors.size(); i++)
 	{
 		json bufferView = jsonBufferViews[accessors[i].BufferView];
@@ -179,7 +176,7 @@ void GLTFLoader::LoadBinary(const char* path, Model& model)
 		}
 		else
 		{
-			view.Target = -1; // Or 0, or some sentinel value to mean "unspecified"
+			view.Target = -1;
 		}
 		bufferViews.push_back(view);
 	}
@@ -230,7 +227,7 @@ void GLTFLoader::LoadBinary(const char* path, Model& model)
 			std::vector<Vertex> vertices;
 			std::vector<unsigned int> indices;
 
-			// Check if required attributes are present
+			// Read attributes
 			int positionAccessorIndex = attributes.value("POSITION", -1);
 			if (positionAccessorIndex < 0) {
 				std::cerr << "Missing POSITION attribute" << std::endl;
@@ -283,10 +280,42 @@ void GLTFLoader::LoadBinary(const char* path, Model& model)
 				std::cerr << "Unsupported index component type: " << componentType << std::endl;
 			}
 
+			std::vector<Texture::Texture> textures;
+			// Read material
+			int materialIndex = primitive.value("material", -1);
+			if (materialIndex >= 0) 
+			{
+				const json& material = jsonMaterials[materialIndex];
+				const json& pbr = material["pbrMetallicRoughness"];
+
+				if (pbr.contains("baseColorTexture"))
+				{
+					int textureIndex = pbr["baseColorTexture"]["index"];
+					int imageIndex = jsonTextures[textureIndex]["source"];
+					const json& image = jsonImages[imageIndex];
+
+					int bufferViewIndex = image["bufferView"];
+					const json& bufferView = jsonBufferViews[bufferViewIndex];
+
+					size_t offset = bufferView.value("byteOffset", 0);
+					size_t length = bufferView["byteLength"];
+					int bufferIndex = bufferView["buffer"];
+
+					const unsigned char* data = reinterpret_cast<const unsigned char*>(buffers[bufferIndex].data() + offset);
+					unsigned int texID = Texture::CreateTexture2D(data, length);
+
+					Texture::Texture texture;
+					texture.id = texID;
+					texture.index = textureIndex;
+					textures.push_back(texture);
+				}
+			}
+
 			// Final mesh push
 			Mesh mesh;
 			mesh.vertices = vertices;
 			mesh.indices = indices;
+			mesh.textures = textures;
 			meshes.push_back(mesh);
 		}
 	}

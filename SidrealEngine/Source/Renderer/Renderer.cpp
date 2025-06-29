@@ -54,7 +54,7 @@ void Renderer::Initialize()
 
     // Create skybox model and HDR texture
     skyboxModel = MeshPrimative::CreateCube();
-    hdrTexture = Texture::CreateTextureHDR("Resources\\kloppenheim_06_puresky_4k.hdr");
+    hdrTexture = Texture::LoadTextureHDR("Resources\\kloppenheim_06_puresky_4k.hdr");
     
     // Initialize shadow pass for rendering
     InitializeShadowPass();
@@ -182,7 +182,7 @@ static void InitializeShadowPass()
 	const unsigned int cascadeCount = 3;
 	const float far = Camera::GetFarPlane();
 	const float near = Camera::GetNearPlane();
-	const float lambda = 0.7f;
+	const float lambda = 0.5f;
 
     //            ---- Shadow Cascade Range ----
 	//   nearplane | 1st cascade | 2nd cascade | farplane

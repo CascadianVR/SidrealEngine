@@ -116,6 +116,11 @@ void UpdateCameraPosition(GLFWwindow* window)
 		currentMoveSpeed *= sprintSpeedMultiplier;
     }
 
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+    {
+        currentMoveSpeed /= sprintSpeedMultiplier;
+    }
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     {
         cameraPosTarget += currentMoveSpeed * Camera::GetCameraForward() * deltaTime;

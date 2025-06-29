@@ -23,6 +23,11 @@ void Engine::Run(const char* startScenePath)
 	EntityManager entityManager;
 	_entityManager = &entityManager;
 
+
+	//AssetPacker::AddSceneToPack(startScenePath);
+	//AssetPacker::PackAllAssets();
+
+	//AssetPacker::LoadAllPackedAssets("assets.sap", _entityManager);
 	Scene::SceneData* scene = AssetManager::LoadSceneFromJSON(startScenePath, _entityManager);
 	Scene::SetActiveScene(scene);
 

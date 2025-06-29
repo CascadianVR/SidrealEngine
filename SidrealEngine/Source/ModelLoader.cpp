@@ -9,7 +9,7 @@
 #include "ModelLoader.h"
 #include "Renderer/Model.h"
 #include "Texture.h"
-#include "GLTFLoader.h"
+#include "Assets/GLTFLoader.h"
 
 using namespace ModelLoader;
 
@@ -112,7 +112,15 @@ void ModelLoader::LoadModel(const char* path, Model& model)
 
 	std::cout << "Mesheds loaded: " << meshes.size() << std::endl;
 
-    unsigned int *VAOs, *VBOs, *EBOs, *instanceVBOs;
+    SetupModelOpenGL(meshes);
+
+    model.meshes = meshes;
+	model.name = name;
+}
+
+void ModelLoader::SetupModelOpenGL(std::vector<Mesh>& meshes)
+{
+    unsigned int* VAOs, * VBOs, * EBOs, * instanceVBOs;
     VAOs = new unsigned int[meshes.size()];
     VBOs = new unsigned int[meshes.size()];
     EBOs = new unsigned int[meshes.size()];
@@ -134,32 +142,32 @@ void ModelLoader::LoadModel(const char* path, Model& model)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[i]);
 
         // Bind and fill VBO with vertex data
-		glBindBuffer(GL_ARRAY_BUFFER, VBOs[i]);
-		glBufferData(GL_ARRAY_BUFFER, meshes[i].vertices.size() * sizeof(Vertex), meshes[i].vertices.data(), GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, VBOs[i]);
+        glBufferData(GL_ARRAY_BUFFER, meshes[i].vertices.size() * sizeof(Vertex), meshes[i].vertices.data(), GL_STATIC_DRAW);
 
-		// Bind and fill EBO with indices data
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[i]);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, meshes[i].indices.size() * sizeof(unsigned int), meshes[i].indices.data(), GL_STATIC_DRAW);
+        // Bind and fill EBO with indices data
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[i]);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, meshes[i].indices.size() * sizeof(unsigned int), meshes[i].indices.data(), GL_STATIC_DRAW);
 
-		// Position attribute
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-		glEnableVertexAttribArray(0);
-		// Normal attribute
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
-		glEnableVertexAttribArray(1);
-		// Texture attribute
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(6 * sizeof(float)));
-		glEnableVertexAttribArray(2);
+        // Position attribute
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+        glEnableVertexAttribArray(0);
+        // Normal attribute
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+        // Texture attribute
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(6 * sizeof(float)));
+        glEnableVertexAttribArray(2);
 
 
-		//glm::mat4 modelMatrix = glm::mat4(1.0f);
-		//modelMatrix = glm::translate(modelMatrix, transform.position);
-		//modelMatrix = glm::rotate(modelMatrix, glm::radians(transform.rotation.x), glm::vec3(1, 0, 0));
-		//modelMatrix = glm::rotate(modelMatrix, glm::radians(transform.rotation.y), glm::vec3(0, 1, 0));
-		//modelMatrix = glm::rotate(modelMatrix, glm::radians(transform.rotation.z), glm::vec3(0, 0, 1));
-		//modelMatrix = glm::scale(modelMatrix, transform.scale);
+        //glm::mat4 modelMatrix = glm::mat4(1.0f);
+        //modelMatrix = glm::translate(modelMatrix, transform.position);
+        //modelMatrix = glm::rotate(modelMatrix, glm::radians(transform.rotation.x), glm::vec3(1, 0, 0));
+        //modelMatrix = glm::rotate(modelMatrix, glm::radians(transform.rotation.y), glm::vec3(0, 1, 0));
+        //modelMatrix = glm::rotate(modelMatrix, glm::radians(transform.rotation.z), glm::vec3(0, 0, 1));
+        //modelMatrix = glm::scale(modelMatrix, transform.scale);
         //
-		//meshes[i].instanceMatrices.push_back(modelMatrix);
+        //meshes[i].instanceMatrices.push_back(modelMatrix);
         //
         //
         //glBindBuffer(GL_ARRAY_BUFFER, instanceVBOs[i]);
@@ -181,14 +189,11 @@ void ModelLoader::LoadModel(const char* path, Model& model)
         //glVertexAttribDivisor(4, 1);
         //glVertexAttribDivisor(5, 1);
         //glVertexAttribDivisor(6, 1);
-	}
+    }
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-    model.meshes = meshes;
-	model.name = name;
 }
 
 void ProcessNode(aiNode* node, const aiScene* scene, std::vector<Mesh>* meshes)
@@ -302,7 +307,7 @@ std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureTyp
             path.append("\\");
             path.append(texturePath.C_Str());
         
-            texture.id = Texture::CreateTexture2D(path.c_str());
+            texture.id = Texture::LoadTexture2D(path.c_str());
             texture.index = textureIndex;
             texture.type = typeName;
             texture.path = texturePath.C_Str();
@@ -335,7 +340,7 @@ std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureTyp
         {
             Texture::Texture texture;
 
-            texture.id = Texture::CreateTexture2D("Resources\\default.png");
+            texture.id = Texture::LoadTexture2D("Resources\\default.png");
             texture.index = textureIndex;
             texture.type = typeName;
             texture.path = "Resources\\default.png";

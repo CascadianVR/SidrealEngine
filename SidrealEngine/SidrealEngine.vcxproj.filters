@@ -75,7 +75,10 @@
     <ClInclude Include="Source\Utils\stb_image_write.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\GLTFLoader.h">
+    <ClInclude Include="Source\Assets\GLTFLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Assets\AssetPacker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -155,7 +158,10 @@
     <ClCompile Include="Source\Window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\GLTFLoader.cpp">
+    <ClCompile Include="Source\Assets\GLTFLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Assets\AssetPacker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -21,7 +21,7 @@ struct Mesh
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
 	std::vector<Texture::Texture> textures;
-	std::vector<glm::mat4> instanceMatrices = std::vector<glm::mat4>(0);
+	//std::vector<glm::mat4> instanceMatrices = std::vector<glm::mat4>(0);
 };
 
 struct Model

@@ -8,6 +8,7 @@
 #include "ModelLoader.h"
 #include "Renderer/Model.h"
 #include "Scene.h"
+#include "Assets/AssetPacker.h"
 
 Scene::SceneData* AssetManager::LoadSceneFromJSON(const char* jsonPath, EntityManager* entityManager)
 {
@@ -38,7 +39,7 @@ Scene::SceneData* AssetManager::LoadSceneFromJSON(const char* jsonPath, EntityMa
 
 	// Load skybox texture
 	std::string path = j["Scene"]["Skybox"]["Path"];
-	unsigned int skyboxTex = Texture::CreateTextureHDR(path.c_str());
+	unsigned int skyboxTex = Texture::LoadTextureHDR(path.c_str());
 	scene->skyboxTexture = skyboxTex;
 
 	// Load all models
@@ -47,23 +48,31 @@ Scene::SceneData* AssetManager::LoadSceneFromJSON(const char* jsonPath, EntityMa
 		Entity entity = entityManager->CreateEntity();
 		entityManager->hasTransform[entity] = true;
 		EntityTransform::Transform& transform = entityManager->transforms[entity];
-
+	
 		std::string path = it.value()["Path"];
 		json value = it.value()["Position"];
 		if (!value.is_null())
 			transform.position = glm::vec3(value[0], value[1], value[2]);
-
+	
 		value = it.value()["Rotation"];
 		if (!value.is_null())
 			transform.rotation = glm::vec3(value[0], value[1], value[2]);
-
+	
 		value = it.value()["Scale"];
 		if (!value.is_null())
 			transform.scale = glm::vec3(value[0], value[1], value[2]);
-
+	
 		entityManager->hasModel[entity] = true;
 		Model& model = entityManager->models[entity];
-		ModelLoader::LoadModel(path.c_str(), model);
+		//ModelLoader::LoadModel(path.c_str(), model);
+	
+		bool success = AssetPacker::LoadPackedModelByName("assets.sap", path.c_str(), model);
+		ModelLoader::SetupModelOpenGL(model.meshes);
+		if (!success)
+		{
+			entityManager->hasModel[entity] = false;
+			continue;
+		}
 
 		value = it.value()["UVTileFactor"];
 		if (!value.is_null())

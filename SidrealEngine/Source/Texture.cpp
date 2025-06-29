@@ -5,13 +5,9 @@
 #include "Texture.h"
 #include "Renderer\Shader.h"
 
-unsigned int Texture::CreateTexture2D(const char* path)
+unsigned int Texture::LoadTexture2D(const char* path)
 {
     // Load texture
-    unsigned int texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-
     int width, height, nrChannels;
     stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0);
@@ -21,11 +17,16 @@ unsigned int Texture::CreateTexture2D(const char* path)
         return -1;
     }
 
+    // Generate texture ID and bind it
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
     glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
     
+	// Upload texture data to GPU depending on the number of channels
     if (nrChannels == 3)
     {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
@@ -47,7 +48,51 @@ unsigned int Texture::CreateTexture2D(const char* path)
     return texture;
 }
 
-unsigned int Texture::CreateTextureHDR(const char* path)
+unsigned int Texture::CreateTexture2D(const unsigned char* data, size_t dataSize)
+{
+    int width, height, nrChannels;
+    stbi_set_flip_vertically_on_load(false);
+
+	unsigned char* imageData = stbi_load_from_memory(data, static_cast<int>(dataSize), &width, &height, &nrChannels, 0);
+    if (!imageData)
+    {
+        throw std::runtime_error("Failed to load texture from memory.");
+        return -1;
+	}
+
+    // Generate texture ID and bind it
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    // Upload texture data to GPU depending on the number of channels
+    if (nrChannels == 3)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, imageData);
+    }
+    else if (nrChannels == 4)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
+    }
+    else
+    {
+        std::cout << "Texture format not supported" << std::endl;
+        return -1;
+    }
+
+    stbi_image_free(imageData);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return texture;
+}
+
+
+unsigned int Texture::LoadTextureHDR(const char* path)
 {
     unsigned int texture;
     glGenTextures(1, &texture);
