@@ -10,16 +10,18 @@
 #include "Renderer/Model.h"
 #include "Texture.h"
 #include "Assets/GLTFLoader.h"
+#include <Entity/EntityManager.h>
+#include <Engine.h>
 
 using namespace ModelLoader;
 
 void ProcessNode(aiNode* node, const aiScene* scene, std::vector<Mesh>* meshes);
 Mesh ProcessMesh(aiMesh* mesh, const aiScene* scene);
-std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::string typeName);
+//std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::string typeName);
 
 const char* currentModelPath = nullptr;
 unsigned int textureIndex = 0;
-std::vector<Texture::Texture> loadedTextures;
+//std::vector<Texture::Texture> loadedTextures;
 std::unordered_map<std::string, Model> loadedModels;
 
 void ModelLoader::LoadModel(const char* path, Model& model)
@@ -112,14 +114,15 @@ void ModelLoader::LoadModel(const char* path, Model& model)
 
 	std::cout << "Mesheds loaded: " << meshes.size() << std::endl;
 
-    SetupModelOpenGL(meshes);
+    //SetupModelOpenGL(meshes);
 
     model.meshes = meshes;
 	model.name = name;
 }
 
-void ModelLoader::SetupModelOpenGL(std::vector<Mesh>& meshes)
+void ModelLoader::SetupModelOpenGL(std::vector<Mesh>& meshes, Entity entity)
 {
+	// Setup OpenGL buffers for each mesh in the model
     unsigned int* VAOs, * VBOs, * EBOs, * instanceVBOs;
     VAOs = new unsigned int[meshes.size()];
     VBOs = new unsigned int[meshes.size()];
@@ -130,12 +133,18 @@ void ModelLoader::SetupModelOpenGL(std::vector<Mesh>& meshes)
     glGenBuffers((GLsizei)meshes.size(), EBOs);
     glGenBuffers((GLsizei)meshes.size(), instanceVBOs);
 
+    EntityManager* entityManager = Engine::GetEntityManager();
+    entityManager->hasRenderData[entity] = true;
+	RenderData& renderData = entityManager->renderData[entity];
+
     for (int i = 0; i < meshes.size(); i++)
     {
-        meshes[i].VAO = VAOs[i];
-        meshes[i].VBO = VBOs[i];
-        meshes[i].EBO = EBOs[i];
-        meshes[i].instanceVBO = instanceVBOs[i];
+		RenderMeshData renderMeshData;
+        renderMeshData.vao = VAOs[i];
+        renderMeshData.vbo = VBOs[i];
+        renderMeshData.ebo = EBOs[i];
+
+		renderData.renderMeshData.push_back(renderMeshData);
 
         glBindVertexArray(VAOs[i]);
         glBindBuffer(GL_ARRAY_BUFFER, VBOs[i]);
@@ -159,7 +168,7 @@ void ModelLoader::SetupModelOpenGL(std::vector<Mesh>& meshes)
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(6 * sizeof(float)));
         glEnableVertexAttribArray(2);
 
-
+		// Static instance matrices
         //glm::mat4 modelMatrix = glm::mat4(1.0f);
         //modelMatrix = glm::translate(modelMatrix, transform.position);
         //modelMatrix = glm::rotate(modelMatrix, glm::radians(transform.rotation.x), glm::vec3(1, 0, 0));
@@ -194,6 +203,16 @@ void ModelLoader::SetupModelOpenGL(std::vector<Mesh>& meshes)
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	// Load textures into opengl from texture data in each mesh
+    for (int i = 0; i < meshes.size(); i++)
+    {
+        // Load texture
+        Texture::TextureData textureData = Texture::CreateTexture2D(meshes[i].textureData.data(), meshes[i].textureData.size());
+
+		renderData.renderMeshData[i].texture = Texture::InitTexture2D_OpenGL(textureData.data.data(), textureData.width, textureData.height, textureData.numChannels);
+    }
+
 }
 
 void ProcessNode(aiNode* node, const aiScene* scene, std::vector<Mesh>* meshes)
@@ -215,14 +234,14 @@ Mesh ProcessMesh(aiMesh* aiMesh, const aiScene* scene)
 {
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
-    std::vector<Texture::Texture> textures;
+    //std::vector<Texture::Texture> textures;
 
     for (unsigned int i = 0; i < aiMesh->mNumVertices; i++)
     {
         Vertex vertex{};
-        vertex.Position = glm::vec3(aiMesh->mVertices[i].x, aiMesh->mVertices[i].y, aiMesh->mVertices[i].z);
-        vertex.Normal = glm::vec3(aiMesh->mNormals[i].x, aiMesh->mNormals[i].y, aiMesh->mNormals[i].z);
-        vertex.TexCoords = glm::vec2(aiMesh->mTextureCoords[0][i].x, aiMesh->mTextureCoords[0][i].y);
+        vertex.position = glm::vec3(aiMesh->mVertices[i].x, aiMesh->mVertices[i].y, aiMesh->mVertices[i].z);
+        vertex.normal = glm::vec3(aiMesh->mNormals[i].x, aiMesh->mNormals[i].y, aiMesh->mNormals[i].z);
+        vertex.uvs = glm::vec2(aiMesh->mTextureCoords[0][i].x, aiMesh->mTextureCoords[0][i].y);
         vertices.push_back(vertex);
     }
 
@@ -235,21 +254,21 @@ Mesh ProcessMesh(aiMesh* aiMesh, const aiScene* scene)
 		}
 	}
 
-    // Load all textures of a given type
-    for (unsigned int i = 0; i < aiMesh->mMaterialIndex; i++)
-    {
-        aiMaterial* material = scene->mMaterials[aiMesh->mMaterialIndex];
-		std::vector<Texture::Texture> diffuseMaps = LoadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
-		textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-    }
+    //// Load all textures of a given type
+    //for (unsigned int i = 0; i < aiMesh->mMaterialIndex; i++)
+    //{
+    //    aiMaterial* material = scene->mMaterials[aiMesh->mMaterialIndex];
+	//	std::vector<Texture::Texture> diffuseMaps = LoadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
+	//	textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+    //}
 
     // Load default texture if no material was loaded
-    if (aiMesh->mMaterialIndex <= 0)
-    {
-        aiMaterial* material = new aiMaterial();
-        std::vector<Texture::Texture> diffuseMaps = LoadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
-        textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-	}
+    //if (aiMesh->mMaterialIndex <= 0)
+    //{
+    //    aiMaterial* material = new aiMaterial();
+    //    std::vector<Texture::Texture> diffuseMaps = LoadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
+    //    textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+	//}
 
     //std::cout << "Material Index: " << aiMesh->mMaterialIndex << std::endl;
     //
@@ -262,95 +281,95 @@ Mesh ProcessMesh(aiMesh* aiMesh, const aiScene* scene)
     Mesh mesh;
     mesh.vertices = vertices;
     mesh.indices = indices;
-    mesh.textures = textures;
+    //mesh.textures = textures;
 
     return mesh;
 }
 
-std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::string typeName)
-{
-	std::vector<Texture::Texture> textures;
-
-    // Load all textures of a given type
-    for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
-    {
-		aiString texturePath;
-		mat->GetTexture(type, i, &texturePath);
-
-        // Check if texture was already loaded
-        bool textureLoaded = false;
-        for (int j = 0; j < loadedTextures.size(); j++)
-        {
-            if (loadedTextures[j].path == texturePath.C_Str())
-            {
-                textureLoaded = true;
-                textures.push_back(loadedTextures[j]);
-                textureIndex++;
-
-                break;
-            }
-        }
-
-        // Load texture if not already loaded
-        if (!textureLoaded)
-        {
-            Texture::Texture texture;
-        
-			// Get directory of model
-			std::string path = std::string(currentModelPath);
-            size_t found = path.find_last_of("/\\");
-            if (found != std::string::npos)
-            {
-                path = path.substr(0, found);
-            }
-
-            path.append("\\");
-            path.append(texturePath.C_Str());
-        
-            texture.id = Texture::LoadTexture2D(path.c_str());
-            texture.index = textureIndex;
-            texture.type = typeName;
-            texture.path = texturePath.C_Str();
-            textures.push_back(texture);
-
-            loadedTextures.push_back(texture);
-
-            textureIndex++;
-        }
-	}
-
-    // Load default texture if no texture was loaded
-    if (mat->GetTextureCount(type) <= 0) 
-    {    
-        // Check if texture was already loaded
-        bool textureLoaded = false;
-        for (int j = 0; j < loadedTextures.size(); j++)
-        {
-            if (loadedTextures[j].path == "Resources\\default.png")
-            {
-                textureLoaded = true;
-                textures.push_back(loadedTextures[j]);
-                textureIndex++;
-                break;
-            }
-        }
-    
-        // Load texture if not already loaded
-        if (!textureLoaded)
-        {
-            Texture::Texture texture;
-
-            texture.id = Texture::LoadTexture2D("Resources\\default.png");
-            texture.index = textureIndex;
-            texture.type = typeName;
-            texture.path = "Resources\\default.png";
-            textures.push_back(texture);
-
-            loadedTextures.push_back(texture);
-
-            textureIndex++;
-        }
-    }
-
-	return textures;
-}
+//std::vector<Texture::Texture> LoadMaterialTextures(aiMaterial* mat, aiTextureType type, std::string typeName)
+//{
+//	std::vector<Texture::Texture> textures;
+//
+//    // Load all textures of a given type
+//    for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
+//    {
+//		aiString texturePath;
+//		mat->GetTexture(type, i, &texturePath);
+//
+//        // Check if texture was already loaded
+//        bool textureLoaded = false;
+//        for (int j = 0; j < loadedTextures.size(); j++)
+//        {
+//            if (loadedTextures[j].path == texturePath.C_Str())
+//            {
+//                textureLoaded = true;
+//                textures.push_back(loadedTextures[j]);
+//                textureIndex++;
+//
+//                break;
+//            }
+//        }
+//
+//        // Load texture if not already loaded
+//        if (!textureLoaded)
+//        {
+//            Texture::Texture texture;
+//        
+//			// Get directory of model
+//			std::string path = std::string(currentModelPath);
+//            size_t found = path.find_last_of("/\\");
+//            if (found != std::string::npos)
+//            {
+//                path = path.substr(0, found);
+//            }
+//
+//            path.append("\\");
+//            path.append(texturePath.C_Str());
+//        
+//            texture.id = Texture::LoadTexture2D(path.c_str());
+//            texture.index = textureIndex;
+//            texture.type = typeName;
+//            texture.path = texturePath.C_Str();
+//            textures.push_back(texture);
+//
+//            loadedTextures.push_back(texture);
+//
+//            textureIndex++;
+//        }
+//	}
+//
+//    // Load default texture if no texture was loaded
+//    if (mat->GetTextureCount(type) <= 0) 
+//    {    
+//        // Check if texture was already loaded
+//        bool textureLoaded = false;
+//        for (int j = 0; j < loadedTextures.size(); j++)
+//        {
+//            if (loadedTextures[j].path == "Resources\\default.png")
+//            {
+//                textureLoaded = true;
+//                textures.push_back(loadedTextures[j]);
+//                textureIndex++;
+//                break;
+//            }
+//        }
+//    
+//        // Load texture if not already loaded
+//        if (!textureLoaded)
+//        {
+//            Texture::Texture texture;
+//
+//            texture.id = Texture::LoadTexture2D("Resources\\default.png");
+//            texture.index = textureIndex;
+//            texture.type = typeName;
+//            texture.path = "Resources\\default.png";
+//            textures.push_back(texture);
+//
+//            loadedTextures.push_back(texture);
+//
+//            textureIndex++;
+//        }
+//    }
+//
+//	return textures;
+//}

@@ -9,6 +9,7 @@
 #include "Entity/EntityManager.h"
 #include "Entity/Systems.h"
 #include "UI/ImGuiOverlay.h"
+#include <Assets/AssetPacker.h>
 
 GLFWwindow* window = NULL;
 EntityManager* _entityManager = nullptr;
@@ -24,8 +25,8 @@ void Engine::Run(const char* startScenePath)
 	_entityManager = &entityManager;
 
 
-	//AssetPacker::AddSceneToPack(startScenePath);
-	//AssetPacker::PackAllAssets();
+	AssetPacker::AddSceneToPack(startScenePath);
+	AssetPacker::PackAllAssets();
 
 	//AssetPacker::LoadAllPackedAssets("assets.sap", _entityManager);
 	Scene::SceneData* scene = AssetManager::LoadSceneFromJSON(startScenePath, _entityManager);

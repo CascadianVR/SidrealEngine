@@ -226,6 +226,7 @@ void GLTFLoader::LoadBinary(const char* path, Model& model)
 
 			std::vector<Vertex> vertices;
 			std::vector<unsigned int> indices;
+			std::vector<unsigned char> textureData;
 
 			// Read attributes
 			int positionAccessorIndex = attributes.value("POSITION", -1);
@@ -244,9 +245,9 @@ void GLTFLoader::LoadBinary(const char* path, Model& model)
 				Vertex v{};
 
 				// Each vertex entry is tightly packed (assumes float format, 3*4 bytes per vec3, 2*4 bytes per vec2)
-				v.Position = *reinterpret_cast<const glm::vec3*>(positionData + i * sizeof(glm::vec3));
-				v.Normal = *reinterpret_cast<const glm::vec3*>(normalData + i * sizeof(glm::vec3));
-				v.TexCoords = *reinterpret_cast<const glm::vec2*>(texCoordData + i * sizeof(glm::vec2));
+				v.position = *reinterpret_cast<const glm::vec3*>(positionData + i * sizeof(glm::vec3));
+				v.normal = *reinterpret_cast<const glm::vec3*>(normalData + i * sizeof(glm::vec3));
+				v.uvs = *reinterpret_cast<const glm::vec2*>(texCoordData + i * sizeof(glm::vec2));
 
 				vertices.push_back(v);
 			}
@@ -280,7 +281,7 @@ void GLTFLoader::LoadBinary(const char* path, Model& model)
 				std::cerr << "Unsupported index component type: " << componentType << std::endl;
 			}
 
-			std::vector<Texture::Texture> textures;
+			//std::vector<Texture::Texture> textures;
 			// Read material
 			int materialIndex = primitive.value("material", -1);
 			if (materialIndex >= 0) 
@@ -302,12 +303,7 @@ void GLTFLoader::LoadBinary(const char* path, Model& model)
 					int bufferIndex = bufferView["buffer"];
 
 					const unsigned char* data = reinterpret_cast<const unsigned char*>(buffers[bufferIndex].data() + offset);
-					unsigned int texID = Texture::CreateTexture2D(data, length);
-
-					Texture::Texture texture;
-					texture.id = texID;
-					texture.index = textureIndex;
-					textures.push_back(texture);
+					textureData = std::vector<unsigned char>(data, data + length);
 				}
 			}
 
@@ -315,7 +311,7 @@ void GLTFLoader::LoadBinary(const char* path, Model& model)
 			Mesh mesh;
 			mesh.vertices = vertices;
 			mesh.indices = indices;
-			mesh.textures = textures;
+			mesh.textureData = textureData;
 			meshes.push_back(mesh);
 		}
 	}

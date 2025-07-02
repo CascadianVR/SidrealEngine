@@ -18,5 +18,5 @@ namespace AssetPacker
 	void AddSceneToPack(const char* scenePath);
 	void PackAllAssets();
 	void LoadAllPackedAssets(const char* path, EntityManager* entityManager);
-	bool LoadPackedModelByName(const char* path, const char* name, Model& model);
+	bool LoadPackedModelByName(const char* path, const char* name, Model& model, Entity entity);
 }

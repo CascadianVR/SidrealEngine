@@ -2,13 +2,14 @@
 #include "MeshPrimative.h"
 #include "ModelLoader.h"
 #include "Renderer/Model.h"
+#include "Entity/Components/RenderData.h"
 
-using namespace ModelLoader;
+using namespace Components;
 
-Texture::Texture LoadDefaultTexture();
+//Texture::Texture LoadDefaultTexture();
 
 
-Model MeshPrimative::CreateCube()
+void MeshPrimative::CreateCube(Model& model, RenderData& renderData)
 {
 
     float vertices[] = {
@@ -94,9 +95,9 @@ Model MeshPrimative::CreateCube()
     for (int i = 0; i < sizeof(vertices) / sizeof(float); i += 8)
     {
         Vertex vertex;
-        vertex.Position = glm::vec3(vertices[i], vertices[i + 1], vertices[i + 2]);
-        vertex.Normal = glm::vec3(vertices[i + 3], vertices[i + 4], vertices[i + 5]);
-        vertex.TexCoords = glm::vec2(vertices[i + 6], vertices[i + 7]);
+        vertex.position = glm::vec3(vertices[i], vertices[i + 1], vertices[i + 2]);
+        vertex.normal = glm::vec3(vertices[i + 3], vertices[i + 4], vertices[i + 5]);
+        vertex.uvs = glm::vec2(vertices[i + 6], vertices[i + 7]);
         verticesVector.push_back(vertex);
     }
     std::vector<unsigned int> indicesVector;
@@ -105,24 +106,16 @@ Model MeshPrimative::CreateCube()
         indicesVector.push_back(indices[i]);
     }
 
-    std::vector<Mesh> meshes;
     Mesh mesh;
-
-    std::vector<Texture::Texture> textures;
-    textures.push_back(LoadDefaultTexture());
-    mesh.textures = textures;
     mesh.vertices = verticesVector;
     mesh.indices = indicesVector;
-    mesh.VAO = VAOs[0];
-    mesh.VBO = VBOs[0];
-    mesh.EBO = EBOs[0];
+    model.meshes.push_back(mesh);
 
-    meshes.push_back(mesh);
-
-    Model model;
-    model.meshes = meshes;
-
-    return model;
+    RenderMeshData renderMeshData;
+    renderMeshData.vao = VAOs[0];
+    renderMeshData.vbo = VBOs[0];
+    renderMeshData.ebo = EBOs[0];
+	renderData.renderMeshData.push_back(renderMeshData);
 }
 
 Model MeshPrimative::CreateQuad()
@@ -171,9 +164,9 @@ Model MeshPrimative::CreateQuad()
    for (int i = 0; i < sizeof(vertices) / sizeof(float); i += 8)
    {
        Vertex vertex;
-       vertex.Position = glm::vec3(vertices[i], vertices[i + 1], vertices[i + 2]);
-       vertex.Normal = glm::vec3(vertices[i + 3], vertices[i + 4], vertices[i + 5]);
-       vertex.TexCoords = glm::vec2(vertices[i + 6], vertices[i + 7]);
+       vertex.position = glm::vec3(vertices[i], vertices[i + 1], vertices[i + 2]);
+       vertex.normal = glm::vec3(vertices[i + 3], vertices[i + 4], vertices[i + 5]);
+       vertex.uvs = glm::vec2(vertices[i + 6], vertices[i + 7]);
        verticesVector.push_back(vertex);
    }
    std::vector<unsigned int> indicesVector;
@@ -186,9 +179,9 @@ Model MeshPrimative::CreateQuad()
    Mesh mesh;
    mesh.vertices = verticesVector;
    mesh.indices = indicesVector;
-   mesh.VAO = VAOs[0];
-   mesh.VBO = VBOs[0];
-   mesh.EBO = EBOs[0];
+   //mesh.VAO = VAOs[0];
+   //mesh.VBO = VBOs[0];
+   //mesh.EBO = EBOs[0];
 
    meshes.push_back(mesh);
 
@@ -198,26 +191,26 @@ Model MeshPrimative::CreateQuad()
    return model;
 }
 
-Texture::Texture defaultTexture;
-bool defaultLoaded;
-Texture::Texture LoadDefaultTexture()
-{
-    Texture::Texture texture;
-
-    // Load texture if not already loaded
-    if (!defaultLoaded)
-    {
-        texture.id = Texture::LoadTexture2D("Resources\\default.png");
-        texture.index = 21;
-        texture.type = "DefaultTexture";
-        texture.path = "Resources\\default.png";
-        defaultTexture = texture;
-        defaultLoaded = true;
-    }
-    else
-    {
-        texture = defaultTexture;
-    }
-
-    return texture;
-}
+//Texture::Texture defaultTexture;
+//bool defaultLoaded;
+//Texture::Texture LoadDefaultTexture()
+//{
+//    Texture::Texture texture;
+//
+//    // Load texture if not already loaded
+//    if (!defaultLoaded)
+//    {
+//        texture.id = Texture::LoadTexture2D("Resources\\default.png");
+//        texture.index = 21;
+//        texture.type = "DefaultTexture";
+//        texture.path = "Resources\\default.png";
+//        defaultTexture = texture;
+//        defaultLoaded = true;
+//    }
+//    else
+//    {
+//        texture = defaultTexture;
+//    }
+//
+//    return texture;
+//}

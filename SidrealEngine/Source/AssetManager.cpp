@@ -47,7 +47,7 @@ Scene::SceneData* AssetManager::LoadSceneFromJSON(const char* jsonPath, EntityMa
 	{
 		Entity entity = entityManager->CreateEntity();
 		entityManager->hasTransform[entity] = true;
-		EntityTransform::Transform& transform = entityManager->transforms[entity];
+		Components::Transform& transform = entityManager->transforms[entity];
 	
 		std::string path = it.value()["Path"];
 		json value = it.value()["Position"];
@@ -64,15 +64,16 @@ Scene::SceneData* AssetManager::LoadSceneFromJSON(const char* jsonPath, EntityMa
 	
 		entityManager->hasModel[entity] = true;
 		Model& model = entityManager->models[entity];
-		//ModelLoader::LoadModel(path.c_str(), model);
 	
-		bool success = AssetPacker::LoadPackedModelByName("assets.sap", path.c_str(), model);
-		ModelLoader::SetupModelOpenGL(model.meshes);
+		bool success = AssetPacker::LoadPackedModelByName("assets.sap", path.c_str(), model, entity);
+		
 		if (!success)
 		{
 			entityManager->hasModel[entity] = false;
 			continue;
 		}
+
+		ModelLoader::SetupModelOpenGL(model.meshes, entity);
 
 		value = it.value()["UVTileFactor"];
 		if (!value.is_null())

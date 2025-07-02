@@ -17,9 +17,11 @@ void RenderSystem(EntityManager& entityManager)
         Renderer::SetupShadowPass();
         for (int i = 0; i < MAX_ENTITIES; ++i) {
             if (entityManager.hasTransform[i] && entityManager.hasModel[i]) {
-                EntityTransform::Transform& transform = entityManager.transforms[i];
+                Components::Transform& transform = entityManager.transforms[i];
                 Model& model = entityManager.models[i];
-                Renderer::RenderModel(model, transform, Renderer::PassType::Shadow);
+                Components::RenderData& renderData = entityManager.renderData[i];
+
+                Renderer::RenderModel(model, transform, renderData, Renderer::PassType::Shadow);
             }
         }
     }
@@ -30,10 +32,11 @@ void RenderSystem(EntityManager& entityManager)
         Renderer::SetupLightingPass();
         for (int i = 0; i < MAX_ENTITIES; ++i) {
             if (entityManager.hasTransform[i] && entityManager.hasModel[i]) {
-                EntityTransform::Transform& transform = entityManager.transforms[i];
+                Components::Transform& transform = entityManager.transforms[i];
                 Model& model = entityManager.models[i];
+                Components::RenderData& renderData = entityManager.renderData[i];
 
-                Renderer::RenderModel(model, transform, Renderer::PassType::Lighting);
+                Renderer::RenderModel(model, transform, renderData, Renderer::PassType::Lighting);
             }
         }
     }

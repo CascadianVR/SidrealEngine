@@ -7,27 +7,21 @@
 
 struct Vertex
 {
-	glm::vec3 Position;
-	glm::vec3 Normal;
-	glm::vec2 TexCoords;
+	glm::vec3 position;
+	glm::vec3 normal;
+	glm::vec2 uvs;
 };
 
 struct Mesh
 {
-	unsigned int VAO;
-	unsigned int VBO;
-	unsigned int EBO;
-	unsigned int instanceVBO;
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
-	std::vector<Texture::Texture> textures;
-	//std::vector<glm::mat4> instanceMatrices = std::vector<glm::mat4>(0);
+	std::vector<unsigned char> textureData;
 };
 
 struct Model
 {
 	std::string name;
 	std::vector<Mesh> meshes;
-	unsigned int instances = 1;
 	float uvTileFactor = 1.0f;
 };

@@ -1,7 +1,7 @@
 #include "Transform.h"
 #include <glm/gtc/matrix_transform.hpp>
 
-glm::mat4 EntityTransform::GetModelMatrix(const Transform& transform)
+glm::mat4 Components::GetModelMatrix(const Transform& transform)
 {
 	glm::mat4 model = glm::mat4(1.0f);
 	model = glm::translate(model, transform.position);
@@ -12,21 +12,21 @@ glm::mat4 EntityTransform::GetModelMatrix(const Transform& transform)
 	return model;
 }
 
-void EntityTransform::Translate(Transform& transform, const glm::vec3& translation)
+void Components::Translate(Transform& transform, const glm::vec3& translation)
 {
 	transform.position += translation;
 }
 
-void EntityTransform::Rotate(Transform& transform, const glm::vec3& rotation)
+void Components::Rotate(Transform& transform, const glm::vec3& rotation)
 {
 	transform.rotation += rotation;
 }
 
-void EntityTransform::Scale(Transform& transform, const glm::vec3& scale)
+void Components::Scale(Transform& transform, const glm::vec3& scale)
 {
 	transform.scale += scale;
 }
 
-void EntityTransform::SetTransform(Transform& transform, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
+void Components::SetTransform(Transform& transform, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
 {
 }

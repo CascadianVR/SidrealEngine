@@ -158,11 +158,13 @@
     <ClInclude Include="Source\Assets\AssetPacker.h" />
     <ClInclude Include="Source\Camera.h" />
     <ClInclude Include="Source\Engine.h" />
+    <ClInclude Include="Source\Entity\Components\RenderData.h" />
     <ClInclude Include="Source\Entity\Components\Transform.h" />
     <ClInclude Include="Source\Entity\EntityManager.h" />
     <ClInclude Include="Source\Entity\Systems.h" />
     <ClInclude Include="Source\Assets\GLTFLoader.h" />
     <ClInclude Include="Source\Input.h" />
+    <ClInclude Include="Source\Renderer\RenderData.h" />
     <ClInclude Include="Source\Utils\MathUtils.h" />
     <ClInclude Include="Source\MeshPrimative.h" />
     <ClInclude Include="Source\ModelLoader.h" />
@@ -191,6 +193,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Source\Entity\Components\RenderData.cpp" />
     <ClCompile Include="Source\Entity\Components\Transform.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>

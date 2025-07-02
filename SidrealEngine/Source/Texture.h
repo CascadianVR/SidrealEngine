@@ -1,18 +1,20 @@
 #pragma once
 #include <string>
+#include <vector>
 
 namespace Texture
 {
-	typedef struct
+	struct TextureData
 	{
-		unsigned int id;
-		unsigned int index;
-		std::string type;
-		std::string path;
-	} Texture;
+		unsigned int width;
+		unsigned int  height;
+		unsigned int  numChannels;
+		std::vector<unsigned char> data;
+	};
 
-	unsigned int LoadTexture2D(const char* path);
-	unsigned int CreateTexture2D(const unsigned char* data, size_t dataSize);
+	TextureData LoadTexture2D(const char* path);
+	TextureData CreateTexture2D(const unsigned char* data, size_t dataSize);
+	unsigned int InitTexture2D_OpenGL(unsigned char* data, int width, int height, int nrChannels);
 	unsigned int LoadTextureHDR(const char* path);
 	unsigned int CreateBindlessTexture(const char* path);
 	void SetActiveAndBindTexture(unsigned int texture, unsigned int index);

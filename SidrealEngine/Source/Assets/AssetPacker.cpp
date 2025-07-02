@@ -161,7 +161,7 @@ void AssetPacker::LoadAllPackedAssets(const char* path, EntityManager* entityMan
 	loadedAssetMap.clear();
 
 	FILE* file = fopen(path, "rb");
-	if (!file)
+	if (!file || file == nullptr)
 	{
 		std::cerr << "Failed to open Sidreal Asset Pack from location: " << path << "\n";
 	}
@@ -220,7 +220,7 @@ void AssetPacker::LoadAllPackedAssets(const char* path, EntityManager* entityMan
 
 	//Entity entity = entityManager->CreateEntity();
 	entityManager->hasTransform[0] = true;
-	EntityTransform::Transform& transform = entityManager->transforms[0];
+	Components::Transform& transform = entityManager->transforms[0];
 	transform.position = { 0.0f, 0.0f, 3.0f };
 	transform.rotation = { 0.0f, 0.0f, 0.0f };
 	transform.scale = { 1.0f, 1.0f, 1.0f };
@@ -234,12 +234,11 @@ void AssetPacker::LoadAllPackedAssets(const char* path, EntityManager* entityMan
 			entityManager->hasModel[0] = true;
 			Model& model = entityManager->models[0];
 			model = DeserializeModel(assetData.data.data(), assetData.data.size());
-			ModelLoader::SetupModelOpenGL(model.meshes);
 		}
 	}
 }
 
-bool AssetPacker::LoadPackedModelByName(const char* path, const char* name, Model& model)
+bool AssetPacker::LoadPackedModelByName(const char* path, const char* name, Model& model, Entity entity)
 {
 	// Check if the asset path is valid
 	if (path == nullptr || path[0] == '\0') {
@@ -314,7 +313,7 @@ bool AssetPacker::LoadPackedModelByName(const char* path, const char* name, Mode
 	if (assetData.entry.type == static_cast<uint32_t>(AssetType::Model))
 	{
 		model = DeserializeModel(assetData.data.data(), assetData.data.size());
-		ModelLoader::SetupModelOpenGL(model.meshes);
+		//ModelLoader::SetupModelOpenGL(model.meshes, entity);
 		std::cout << "Loaded " << assetData.entry.name << "\n";
 	}
 	else
@@ -326,34 +325,23 @@ bool AssetPacker::LoadPackedModelByName(const char* path, const char* name, Mode
 	return true;
 }
 
-
-
-
-
-
-
-
-
-void SerializeVertex(const Vertex& v, std::vector<char>& out)
-{
-	out.insert(out.end(), reinterpret_cast<const char*>(&v), reinterpret_cast<const char*>(&v) + sizeof(Vertex));
-}
-
 void SerializeMesh(const Mesh& mesh, std::vector<char>& out)
 {
 	uint32_t vertexCount = static_cast<uint32_t>(mesh.vertices.size());
 	out.insert(out.end(), reinterpret_cast<const char*>(&vertexCount), reinterpret_cast<const char*>(&vertexCount) + sizeof(uint32_t));
-
 	for (const Vertex& v : mesh.vertices)
-		SerializeVertex(v, out);
+	{
+		out.insert(out.end(), reinterpret_cast<const char*>(&v), reinterpret_cast<const char*>(&v) + sizeof(Vertex));
+	}
 
 	uint32_t indexCount = static_cast<uint32_t>(mesh.indices.size());
 	out.insert(out.end(), reinterpret_cast<const char*>(&indexCount), reinterpret_cast<const char*>(&indexCount) + sizeof(uint32_t));
 	out.insert(out.end(), reinterpret_cast<const char*>(mesh.indices.data()), reinterpret_cast<const char*>(mesh.indices.data()) + indexCount * sizeof(unsigned int));
 
-	// If you want to store textures, store string names or IDs — NOT the Texture objects themselves.
-	uint32_t textureCount = 0;
+	// Serialize textures
+	uint32_t textureCount = static_cast<uint32_t>(mesh.textureData.size());
 	out.insert(out.end(), reinterpret_cast<const char*>(&textureCount), reinterpret_cast<const char*>(&textureCount) + sizeof(uint32_t));
+	out.insert(out.end(), reinterpret_cast<const char*>(mesh.textureData.data()), reinterpret_cast<const char*>(mesh.textureData.data()) + textureCount * sizeof(unsigned char));
 }
 
 void SerializeModel(const Model& model, std::vector<char>& out)
@@ -364,7 +352,7 @@ void SerializeModel(const Model& model, std::vector<char>& out)
 	out.insert(out.end(), model.name.begin(), model.name.end());
 
 	// Serialize instances and UV tile
-	out.insert(out.end(), reinterpret_cast<const char*>(&model.instances), reinterpret_cast<const char*>(&model.instances) + sizeof(unsigned int));
+	//out.insert(out.end(), reinterpret_cast<const char*>(&model.instances), reinterpret_cast<const char*>(&model.instances) + sizeof(unsigned int));
 	out.insert(out.end(), reinterpret_cast<const char*>(&model.uvTileFactor), reinterpret_cast<const char*>(&model.uvTileFactor) + sizeof(float));
 
 	// Serialize meshes
@@ -372,7 +360,9 @@ void SerializeModel(const Model& model, std::vector<char>& out)
 	out.insert(out.end(), reinterpret_cast<const char*>(&meshCount), reinterpret_cast<const char*>(&meshCount) + sizeof(uint32_t));
 
 	for (const Mesh& mesh : model.meshes)
+	{
 		SerializeMesh(mesh, out);
+	}
 }
 
 Model DeserializeModel(const char* data, size_t size)
@@ -395,7 +385,7 @@ Model DeserializeModel(const char* data, size_t size)
 	read(model.name.data(), nameLen);
 
 	// Read instances and UV tile
-	read(&model.instances, sizeof(unsigned int));
+	//read(&model.instances, sizeof(unsigned int));
 	read(&model.uvTileFactor, sizeof(float));
 
 	// Read mesh count
@@ -419,10 +409,11 @@ Model DeserializeModel(const char* data, size_t size)
 		mesh.indices.resize(indexCount);
 		read(mesh.indices.data(), indexCount * sizeof(unsigned int));
 
-		// Skip texture data (or extend this later)
+		// Read texture count
 		uint32_t textureCount;
 		read(&textureCount, sizeof(uint32_t));
-		// Skipping actual texture info for now
+		mesh.textureData.resize(textureCount);
+		read(mesh.textureData.data(), textureCount * sizeof(unsigned char));
 	}
 
 	return model;

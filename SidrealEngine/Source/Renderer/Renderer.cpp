@@ -12,9 +12,10 @@
 #include "MeshPrimative.h"
 #include "Texture.h"
 #include "Entity/Components/Transform.h"
+#include "Entity/Components/RenderData.h"
 #include <Window.h>
-#include <Utils/Timer.h>
 
+using namespace Components;
 
 const unsigned int ShadowMapSize = 2048 * 2;
 
@@ -22,8 +23,8 @@ static void RenderSkybox();
 static void InitializeShadowPass();
 static void InitializeLightingPass();
 static void UpdateLightProjectionViews();
-static void RenderShadowPass(Model& model, EntityTransform::Transform& transform);
-static void RenderLightingPass(Model& model, EntityTransform::Transform& transform);
+static void RenderShadowPass(Model& model, Transform& transform, RenderData& renderData);
+static void RenderLightingPass(Model& model, Transform& transform, RenderData& renderData);
 static glm::mat4 CalculateLightSpaceMatrix(float nearPlane, float farPlane);
 
 unsigned int shaderLightingProgram;
@@ -44,6 +45,7 @@ std::vector<glm::mat4> shadowLightSpaceMatricies;
 glm::vec3 lightDirection;
 
 Model skyboxModel;
+RenderData skyboxRenderData;
 
 void Renderer::Initialize()
 {
@@ -53,7 +55,7 @@ void Renderer::Initialize()
     LoadShaders(false);
 
     // Create skybox model and HDR texture
-    skyboxModel = MeshPrimative::CreateCube();
+    MeshPrimative::CreateCube(skyboxModel, skyboxRenderData);
     hdrTexture = Texture::LoadTextureHDR("Resources\\kloppenheim_06_puresky_4k.hdr");
     
     // Initialize shadow pass for rendering
@@ -114,15 +116,15 @@ void Renderer::SetupLightingPass()
     Texture::SetActiveAndBindTexture(depthMaps, 1);
 }
 
-void Renderer::RenderModel(Model& model, EntityTransform::Transform& transform, PassType passType)
+void Renderer::RenderModel(Model& model, Components::Transform& transform, Components::RenderData renderData, PassType passType)
 {
     if (passType == PassType::Shadow)
     {
-        RenderShadowPass(model, transform);
+        RenderShadowPass(model, transform, renderData);
     }
     else if (passType == PassType::Lighting)
     {
-        RenderLightingPass(model, transform);
+        RenderLightingPass(model, transform, renderData);
     }
 }
 
@@ -278,8 +280,8 @@ static void RenderSkybox()
     
     // Render the skybox cube mesh
     Mesh& mesh = skyboxModel.meshes[0];
-    glBindVertexArray(mesh.VAO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
+    glBindVertexArray(skyboxRenderData.renderMeshData[0].vao);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, skyboxRenderData.renderMeshData[0].ebo);
 
     // Bind HDR texture
     glActiveTexture(GL_TEXTURE0);
@@ -293,41 +295,43 @@ static void RenderSkybox()
     glDepthFunc(GL_LESS);
 }
 
-static void RenderShadowPass(Model& model, EntityTransform::Transform& transform)
+static void RenderShadowPass(Model& model, Components::Transform& transform, RenderData& renderData)
 {
     for (int j = 0; j < model.meshes.size(); j++)
     {
         Mesh& mesh = model.meshes[j];
 
         // Bind mesh VAO and EBO
-        glBindVertexArray(mesh.VAO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
+        glBindVertexArray(renderData.renderMeshData[j].vao);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, renderData.renderMeshData[j].ebo);
 
-        Shader::SetMatrix4f(&shaderShadowProgram, "model", EntityTransform::GetModelMatrix(transform));
+        Shader::SetMatrix4f(&shaderShadowProgram, "model", Components::GetModelMatrix(transform));
+
+        GLsizei indices = static_cast<GLsizei>(mesh.indices.size());
 
         // Draw mesh
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(mesh.indices.size()), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, indices, GL_UNSIGNED_INT, 0);
     }
 }
 
-static void RenderLightingPass(Model& model, EntityTransform::Transform& transform)
+static void RenderLightingPass(Model& model, Components::Transform& transform, RenderData& renderData)
 {
     for (int j = 0; j < model.meshes.size(); j++)
     {
         Mesh& mesh = model.meshes[j];
 
         // Bind mesh VAO and EBO
-        glBindVertexArray(mesh.VAO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
+        glBindVertexArray(renderData.renderMeshData[j].vao);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, renderData.renderMeshData[j].ebo);
 
-        Shader::SetMatrix4f(&shaderLightingProgram, "model", EntityTransform::GetModelMatrix(transform));
+        Shader::SetMatrix4f(&shaderLightingProgram, "model", Components::GetModelMatrix(transform));
 
         // Bind texture for each mesh
-        if (mesh.textures.size() > 0)
+        if (renderData.renderMeshData[j].texture >= 0)
         {
             Shader::SetUniform1f(&shaderLightingProgram, "uvTileFactor", model.uvTileFactor);
             //if (model.name == "quad.obj")   Texture::SetActiveAndBindTexture(depthMaps, 0);
-            Texture::SetActiveAndBindTexture(mesh.textures[0].id, 0);
+            Texture::SetActiveAndBindTexture(renderData.renderMeshData[j].texture, 0);
         }
 
         // Draw mesh
